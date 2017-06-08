@@ -16,4 +16,8 @@ th main.lua
 
 The output model: `$savename/model.t7`
 
-The output examplar generation: `$savename/output[123].png`
+To generate:
+```
+th generate.lua --imgname output.png --modelpath ./$savename/model.t7
+```
+The output examplar generation: `output.png`

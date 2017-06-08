@@ -248,24 +248,6 @@ do
       G:backward(noise, dG)
       return loss_fakeG, gparam_g
    end
-
-   --[[ Evaluation function ]]--
-   function genimg(fname)
-      noise:normal()
-      local fake_hid = G:forward(noise)
-      local fake_gen = AE_:get(2):forward(fake_hid):float()
-      local _, fake_gen_max = fake_gen:max(2)
-      local fake_gen_max = fake_gen_max:mul(2):add(-3)
-      local irec = image.toDisplayTensor({input=fake_gen_max,nrow=10,padding=1})
-      prep_batch("test")
-      local x_ = AE_:forward(x_binmnist_in)
-      local _,x_ = x_:max(2)
-      local x_ = x_:mul(2):add(-3)
-      local irec0 = image.toDisplayTensor({input=x_,nrow=10,padding=1})
-      local splitbar = torch.Tensor(1,4,irec0:size(2)):fill(0.5)
-      local todisp = torch.cat({irec0,splitbar,irec},2)
-      image.save(fname, todisp)
-   end
 end
 -- training loop
 for iEpoch = 1, opt.nEpoches do
@@ -311,9 +293,6 @@ for iEpoch = 1, opt.nEpoches do
    if iEpoch == opt.nEpoches then
       model:clearState()
       torch.save(string.format("%s/model.t7", opt.savename), {model, opt})
-      genimg(string.format("%s/output1.png", opt.savename))
-      genimg(string.format("%s/output2.png", opt.savename))
-      genimg(string.format("%s/output3.png", opt.savename))
    end
    tt:reset()
 end
