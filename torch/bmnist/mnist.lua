@@ -1,5 +1,12 @@
 --[[
   Data loader for MNIST
+
+  MNIST t7 dataset should be downloaded and placed under this folder,
+  with the strcuture:
+  .
+  +-- mnist
+      +-- train_28x28.t7
+      +-- test_28x28.t7
 --]]
 
 require "nn"
@@ -17,8 +24,8 @@ function loader:__init(config)
    self.h = 28
    self.w = 28
    -- dataset loading
-   self.train = torch.load("/misc/vlgscratch3/LecunGroup/michael/datasets/mnist/train_28x28.th7")
-   self.test = torch.load("/misc/vlgscratch3/LecunGroup/michael/datasets/mnist/test_28x28.th7")
+   self.train = torch.load("./mnist/train_28x28.th7")
+   self.test = torch.load("./mnist/test_28x28.th7")
    -- preprocessing
    self.train.data = self.train.data:float()
    self.test.data  = self.test.data:float()
