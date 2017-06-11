@@ -34,10 +34,24 @@ To generate sentences similar to Figure 5 in the paper:
 ```
 th generate.lua -model_file ${path_to_your_model}
 ```
+Note the scripts support `-output_file` option if you want to cache the sentences and the corresponding `z` random vectors.
+
+### Interpolation
 Interpolation in the `z` space:
 ```
 th interpolate.lua -model_file ${path_to_your_model}
 ```
-Note both scripts support `-output_file` option if you want to cache the sentences and the corresponding `z` random vectors.
+Note the scripts support `-output_file` option if you want to cache the sentences and the corresponding `z` random vectors.
 
+Some examples:
+```
+A man is elderly soldier stands .
+A man carries is working of a woman .
+An old man is looking through a .
+An old kitten is looking at a soccer .
+An old kitten is looking at a jumping .
+A young dog is sitting on a next .
+A child is sitting on a rocks .
+A child sits near a jumping .
+```
 
