@@ -2,6 +2,15 @@
   Main file
 --]]
 
+require 'cutorch'
+require 'nn'
+require 'cunn'
+require 'nngraph'
+require 'cudnn'
+require 'optim'
+paths.dofile('data.lua')
+paths.dofile('models.lua')
+paths.dofile('utils.lua')
 
 ---------------------------------------
 -------------- Setting ----------------
@@ -9,8 +18,8 @@
 cmd = torch.CmdLine()
 -- general setting
 cmd:option('-gpuid', 1, [[device id]])
-cmd:option('-save_name', '69', [[Save name]])  -- TODO
-cmd:option('-ndisp', 8, [[number of display sentences]])  -- TODO
+cmd:option('-save_name', '69', [[Save name]])
+cmd:option('-ndisp', 8, [[number of display sentences]])
 -- data setting
 cmd:option('-data_file', 'SNLI/snli-15-train.hdf5', [[Path to the training *.hdf5 file from preprocess.py]])
 cmd:option('-val_data_file', 'SNLI/snli-15-val.hdf5', [[Path to validation *.hdf5 file from preprocess.py]])
@@ -38,7 +47,7 @@ cmd:option('-prealloc', 1, [[Use memory preallocation and sharing between cloned
 cmd:option('-radius', 0.2, [[Standard deviation of the noise added to the code vector]])
 cmd:option('-radius_anne', 0.995, [[Noise std exponential decay factor]])
 -- training settings
-cmd:option('-epochs', 6, [[Number of training epochs]])
+cmd:option('-epochs', 8, [[Number of training epochs]])
 cmd:option('-niters_ae', 1, [[Number of iters trained on RNN autoencoder within each iteration]])
 cmd:option('-niters_gan', 1, [[Number of iters trained on WGAN within each iteration]])
 cmd:option('-niters_gan_d', 5, [[Number of iterations training WGAN critic for each loop]])
@@ -65,19 +74,14 @@ cmd:option('-learning_rate_ae', 1, [[Learning rate for RNN autoencoders]])
 cmd:option('-learning_rate_g', 5e-05, [[Learning rate for the WGAN generator]])
 cmd:option('-learning_rate_d', 1e-05, [[Learning rate for the WGAN discriminator/critic]])
 opt = cmd:parse(arg)
-torch.manualSeed(opt.seed)
--- TODO move up
-require 'nn'
-require 'nngraph'
-require 'cudnn'
-require 'optim'
-paths.dofile('data.lua')
-paths.dofile('models.lua')
-paths.dofile('utils.lua')
 
 ---------------------------------------
 ----------------- Aux -----------------
 ---------------------------------------
+-- device initialization
+cutorch.setDevice(opt.gpuid)
+torch.manualSeed(opt.seed)
+cutorch.manualSeed(opt.seed)
 -- logging aux
 os.execute("mkdir -p " .. opt.save_name)
 print("Saving to " .. opt.save_name)
@@ -491,7 +495,6 @@ function train(train_data, valid_data)
        if opt.niters_gan>0 and iter%1000==0 then
           -- run eval: to get the code_cache for nearest neighbor retrieval
           local _ = eval(valid_data)
-          print(_)  -- TODO
           -- generate text
           gentext(opt.ndisp)
        end
@@ -675,14 +678,6 @@ end  -- end function gentext
 ---------------- MAIN -----------------
 ---------------------------------------
 function main()
-   -- TODO take out
-   if opt.gpuid >= 0 then
-     print('using CUDA on GPU ' .. opt.gpuid .. '...')
-     require 'cutorch'
-     require 'cunn'
-     cutorch.setDevice(opt.gpuid)
-     cutorch.manualSeed(opt.seed)
-   end
    ----------------------
    ------- data ---------
    ----------------------
