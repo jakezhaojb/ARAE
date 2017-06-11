@@ -8,6 +8,23 @@ nn, cunn, cudnn, optim, image, nngraph, hdf5
 
 
 ### SNLI dataset preparation
+We provide dataset that contains all the text sentences extracted from the SNLI datasets, with a duplication-check pass, available here:
+[https://drive.google.com/open?id=0B4IZ6lmAKTWJdmpOOFgxQ0JxWW8](https://drive.google.com/open?id=0B4IZ6lmAKTWJdmpOOFgxQ0JxWW8)
+Note we combine the sentences from SNLI original training and validation set into `snli_train_val.txt`, which is used to train the ARAE for this task.
+
+Download both files, and place them following this folder structure:
+```
+.
++-- SNLI
+  +-- snli_train_val.txt
+  +-- snli_test.txt
+```
+
+Then run the preprocessing script, by:
+```
+python preprocess.py --trainfile SNLI/snli_train_val.txt --valfile SNLI/snli_test.txt --vocabsize 11000 --seqlength 15 --outputfile SNLI/snli-15
+```
+The script should generate files: `snli-15-train.hdf5`,  `snli-15-val.hdf5` and `snli-15.dict`, under the `SNLI` folder.
 
 
 ### Train
