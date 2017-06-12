@@ -108,6 +108,7 @@ local function reset_state(state, batch_l, t)
       return u
    end
 end
+
 --[[ generate text function ]]--
 local function gentext(n, l, mode)
    -- load dictionary

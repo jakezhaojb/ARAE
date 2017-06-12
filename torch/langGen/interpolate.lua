@@ -110,62 +110,8 @@ local function reset_state(state, batch_l, t)
       return u
    end
 end
---[[ generate text function ]]--
-local function gentext(n, l, mode)
-   -- load dictionary
-   if idict==nil then
-      _, idict = load_dict(opt.dict_file)  -- path to dict
-   end
-   -- tensor get-ready
-   local pad = pad_proto[{{1, n}}]
-   noise_v:resize(n, opt.gan_z):normal()
-   genexpo:resize(l, n):zero()
-   -- WGAN generator fwd
-   local fake_context = gangen:forward(noise_v)
-   --[[ generate samples inline function ]]--
-   local function generate_sample(context, result)
-      local rnn_state_dec = reset_state(init_layer_query, n, 0)
-      if opt.init_dec == 1 then
-         rnn_state_dec[0][#rnn_state_dec[0]]:copy(transferL:forward(context))
-      end
-      local decoder_inputs = {}
-      local pred_argmax
-      -- decoder fwd
-      for t = 1, l do
-         decoder:evaluate()
-         if t == 1 or opt.teacher_forcing == 0 then
- 	    decoder_inputs[t] = {pad, table.unpack(rnn_state_dec[t-1])}
-         else
- 	    decoder_inputs[t] = {pred_argmax[{{}, 1}], table.unpack(rnn_state_dec[t-1])}
-         end	-- end if t == 1
-         rnn_state_dec[t] = decoder:forward(decoder_inputs[t])
-         local pred_input = {rnn_state_dec[t][#rnn_state_dec[t]], context}
-         local pred = wordgen:forward(pred_input)
-         -- greedy decoding or sampling
-         if mode == 'argmax' then
-       _, pred_argmax = pred:max(2)
-         elseif mode == 'sample' then
-       pred_argmax = torch.multinomial(pred:exp(), 1)
-         end	-- end if mode == 'argmax'
-         result:select(1,t):copy(pred_argmax)
-       end  -- end for t = 1, l
-       return result
-   end  -- end local function generate_sample
-   -- run the generate_sample function on the generated code
-   genexpo = generate_sample(fake_context, genexpo)
-   -- displaying genexpo
-   for i = 1, n do
-      local this_sample = genexpo:select(2,i)
-      local this_str = convert_to_word(this_sample, idict)
-      if output_text then
-         output_text:write(this_str .. '\n')
-         output_vector:write(table.concat(noise_v[i]:totable(), ' ') .. '\n')
-      end  -- end if output_text
-      print(this_str)
-   end  -- end for i = 1
-   collectgarbage()
-end  -- end local function gentext
 
+--[[ z-interpolation function ]]--
 function interp(n, l, mode)
    -- load dictionary
    if idict==nil then
