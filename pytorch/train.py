@@ -20,7 +20,7 @@ parser = argparse.ArgumentParser(description='PyTorch ARAE for Text')
 # Path Arguments
 parser.add_argument('--data_path', type=str, required=True,
                     help='location of the data corpus')
-parser.add_argument('--kenlm_path', type=str, required=True,
+parser.add_argument('--kenlm_path', type=str, default='../Data/kenlm',
                     help='path to kenlm directory')
 parser.add_argument('--outf', type=str, default='example',
                     help='output directory name')
@@ -68,6 +68,8 @@ parser.add_argument('--epochs', type=int, default=15,
                     help='maximum number of epochs')
 parser.add_argument('--min_epochs', type=int, default=6,
                     help="minimum number of epochs to train for")
+parser.add_argument('--no_earlystopping', action='store_true',
+                    help="won't use KenLM for early stopping")
 parser.add_argument('--patience', type=int, default=5,
                     help="number of language model evaluations without ppl "
                          "improvement to wait before early stopping")
@@ -551,7 +553,7 @@ for epoch in range(1, args.epochs+1):
                                    format(epoch, niter_global))
 
                 # evaluate with lm
-                if epoch > args.min_epochs:
+                if not args.no_earlystopping and epoch > args.min_epochs:
                     ppl = train_lm(eval_path=os.path.join(args.data_path,
                                                           "test.txt"),
                                    save_path="output/{}/"
@@ -603,7 +605,7 @@ for epoch in range(1, args.epochs+1):
         f.write('\n')
 
     evaluate_generator(fixed_noise, "end_of_epoch_{}".format(epoch))
-    if epoch >= args.min_epochs:
+    if not args.no_earlystopping and epoch >= args.min_epochs:
         ppl = train_lm(eval_path=os.path.join(args.data_path, "test.txt"),
                        save_path="./output/{}/end_of_epoch{}_lm_generations".
                                  format(args.outf, epoch))
