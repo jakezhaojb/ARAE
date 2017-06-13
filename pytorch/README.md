@@ -1,58 +1,14 @@
 # PyTorch ARAE for Text Generation
 
-## Model Details
-- We train on sentences that have up to 30 tokens and take the most likely word (argmax) when decoding (there is an option to sample when decoding as well).
-- For a numerical way for early stopping, after the model has trained for a specified minimum number of epochs, we periodically train a n-gram language model (with modified Kneser-Ney and Laplacian smoothing) on 100,000 generated sentences and evaluate the perplexity of real sentences from a held-out test set. If the perplexity does not improve over that of the lowest perplexity seen for a certain number of iterations (patience), we end training.
+## Pretrained Version
 
-## Requirements
-- Python 2.7
-- PyTorch
-- Python's JSON package
-- Python's Argparse package
-- KenLM (https://github.com/kpu/kenlm)
+1) Download and unzip https://drive.google.com/drive/folders/0B4IZ6lmAKTWJSE9UNFYzUkphaVU?usp=sharing.
 
-### KenLM Installation:
-- Download stable release and unzip: http://kheafield.com/code/kenlm.tar.gz
-- Need Boost >= 1.42.0 and bjam
-    - Ubuntu: `sudo apt-get install libboost-all-dev`
-    - Mac: `brew install boost; brew install bjam`
-- Run within kenlm directory:
-    ```bash
-    mkdir -p build
-    cd build
-    cmake ..
-    make -j 4
-    ```
-- `pip install https://github.com/kpu/kenlm/archive/master.zip`
-- For more information on KenLM see: https://github.com/kpu/kenlm and http://kheafield.com/code/kenlm/
+2) Run 
 
-## Data Preparation
+`python generate.py --load_path ./maxlen30`
 
-### SNLI Data Preparation
-- Download dataset and unzip: https://nlp.stanford.edu/projects/snli/snli_1.0.zip
-- Run `python snli_preprocessing.py --in_path PATH_TO_SNLI --out_path PATH_TO_PROCESSED_DATA`
-    - Example: `python snli_preprocessing.py --in_path ../Data/snli_1.0 --out_path ../Data/snli_lm`
-    - The script will create the output directory if it doesn't already exist
-- For more information on SNLI see: https://nlp.stanford.edu/projects/snli/
-
-### Other Datasets
-If you would like to train a text ARAE on another dataset, simply
-1) Create a data directory with a `train.txt` and `test.txt` files with line delimited sentences.
-2) Run training command with the `--data_path` argument pointing to that data directory.
-
-## Train
-`python main.py --data_path PATH_TO_PROCESSED_DATA --kenlm_path PATH_TO_KENLM_DIRECTORY`
-- When training on default parameters the training script will output the logs, generations, and saved models to: `./output/example`
-
-## Generation and Interpolation
-`python generate.py --load_path PATH_TO_MODEL_DIRECTORY`
-- This script with default arguments will print out the generations and write them to `./generated.txt`
-- Note that `generate.py` also requires the `args.json` and `vocab.json` files created during training.
-
-If you would like to generate with a pre-trained model:
-1) Download and unzip the `model-maxlen15.zip` or `model-maxlen30.zip` files found here: https://drive.google.com/drive/folders/0B4IZ6lmAKTWJSE9UNFYzUkphaVU?usp=sharing.
-2) Run: `python generate.py --load_path ./maxlen30`
-- Our pre-trained models require CUDA and Python 2.7 to evaluate.
+(Requires CUDA and Python)
 
 ## Example Generations
 
@@ -153,3 +109,47 @@ A happy man is driving something in his hair .
 A group of <oov> walks is wearing sunglasses in a white box .
 A group of <oov> woman is putting people in a white shop with the window .
 ```
+
+## Training 
+
+### Model Details
+- We train on sentences that have up to 30 tokens and take the most likely word (argmax) when decoding (there is an option to sample when decoding as well).
+- For a numerical way for early stopping, after the model has trained for a specified minimum number of epochs, we periodically train a n-gram language model (with modified Kneser-Ney and Laplacian smoothing) on 100,000 generated sentences and evaluate the perplexity of real sentences from a held-out test set. If the perplexity does not improve over that of the lowest perplexity seen for a certain number of iterations (patience), we end training.
+
+### Requirements
+- Python 2.7
+- PyTorch, JSON, Argparse
+- KenLM (https://github.com/kpu/kenlm)
+
+### KenLM Installation:
+- Download stable release and unzip: http://kheafield.com/code/kenlm.tar.gz
+- Need Boost >= 1.42.0 and bjam
+    - Ubuntu: `sudo apt-get install libboost-all-dev`
+    - Mac: `brew install boost; brew install bjam`
+- Run within kenlm directory:
+    ```bash
+    mkdir -p build
+    cd build
+    cmake ..
+    make -j 4
+    ```
+- `pip install https://github.com/kpu/kenlm/archive/master.zip`
+- For more information on KenLM see: https://github.com/kpu/kenlm and http://kheafield.com/code/kenlm/
+
+## Data Preparation
+
+### SNLI Data Preparation
+- Download dataset and unzip: https://nlp.stanford.edu/projects/snli/snli_1.0.zip
+- Run `python snli_preprocessing.py --in_path PATH_TO_SNLI --out_path PATH_TO_PROCESSED_DATA`
+    - Example: `python snli_preprocessing.py --in_path ../Data/snli_1.0 --out_path ../Data/snli_lm`
+    - The script will create the output directory if it doesn't already exist
+- For more information on SNLI see: https://nlp.stanford.edu/projects/snli/
+
+### Other Datasets
+If you would like to train a text ARAE on another dataset, simply
+1) Create a data directory with a `train.txt` and `test.txt` files with line delimited sentences.
+2) Run training command with the `--data_path` argument pointing to that data directory.
+
+## Train
+`python main.py --data_path PATH_TO_PROCESSED_DATA --kenlm_path PATH_TO_KENLM_DIRECTORY`
+- When training on default parameters the training script will output the logs, generations, and saved models to: `./output/example`
