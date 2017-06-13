@@ -130,7 +130,7 @@ If you would like to train a text ARAE on another dataset, simply
 2) Run training command with the `--data_path` argument pointing to that data directory.
 
 ## Train
-`python main.py --data_path PATH_TO_PROCESSED_DATA [--kenlm_path PATH_TO_KENLM_DIRECTORY]`
+`python train.py --data_path PATH_TO_PROCESSED_DATA [--kenlm_path PATH_TO_KENLM_DIRECTORY]`
 - When training on default parameters the training script will output the logs, generations, and saved models to: `./output/example`
 
 ### Model Details
