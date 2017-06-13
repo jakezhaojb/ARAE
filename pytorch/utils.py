@@ -3,7 +3,9 @@ import torch
 import numpy as np
 import random
 
+
 def load_kenlm():
+    global kenlm
     import kenlm
 
 
