@@ -50,7 +50,7 @@ If you would like to train a text ARAE on another dataset, simply
 - Note that `generate.py` also requires the `args.json` and `vocab.json` files created during training.
 
 If you would like to generate with a pre-trained model:
-1) Download and unzip the `model-maxlen15.zip` or `model-maxlen30.zip` files found here: https://drive.google.com/drive/folders/0B4IZ6lmAKTWJSE9UNFYzUkphaVU.
+1) Download and unzip the `model-maxlen15.zip` or `model-maxlen30.zip` files found here: https://drive.google.com/drive/folders/0B4IZ6lmAKTWJSE9UNFYzUkphaVU?usp=sharing.
 2) Run: `python generate.py --load_path ./maxlen30`
 - Our pre-trained models require CUDA and Python 2.7 to evaluate.
 
