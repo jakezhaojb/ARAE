@@ -8,11 +8,11 @@
 
 1) Download and unzip https://drive.google.com/drive/folders/0B4IZ6lmAKTWJSE9UNFYzUkphaVU?usp=sharing.
 
-2) Run 
+2) Run: 
 
-`python generate.py --load_path ./maxlen30`
+    `python generate.py --load_path ./maxlen30`
 
-(Requires CUDA and Python)
+    (Requires CUDA and Python)
 
 ## Example Generations
 
@@ -130,7 +130,14 @@ If you would like to train a text ARAE on another dataset, simply
 2) Run training command with the `--data_path` argument pointing to that data directory.
 
 ## Train
-`python train.py --data_path PATH_TO_PROCESSED_DATA [--kenlm_path PATH_TO_KENLM_DIRECTORY]`
+1) To train without KenLM: 
+
+    `python train.py --data_path PATH_TO_PROCESSED_DATA --no_earlystopping`
+
+2) To train with KenLM for early stopping: 
+
+    `python train.py --data_path PATH_TO_PROCESSED_DATA --kenlm_path PATH_TO_KENLM_DIRECTORY`
+
 - When training on default parameters the training script will output the logs, generations, and saved models to: `./output/example`
 
 ### Model Details
