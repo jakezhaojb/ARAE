@@ -87,7 +87,7 @@ def interpolate(z1, z2, vocab, steps=5):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ARAE for Text Eval')
-    parser.add_argument('--load_path', type=str, default='data/temp1',
+    parser.add_argument('--load_path', type=str, required=True,
                         help='directory to load models from')
     parser.add_argument('--temp', type=float, default=1,
                         help='softmax temperature (lower --> more discrete)')
@@ -97,7 +97,7 @@ if __name__ == "__main__":
                         help='Number z-space sentence interpolation examples')
     parser.add_argument('--steps', type=int, default=5,
                         help='Number of steps in each interpolation')
-    parser.add_argument('--outf', type=str, default='./output/generated.txt',
+    parser.add_argument('--outf', type=str, default='./generated.txt',
                         help='filename and path to write to')
     parser.add_argument('--noprint', action='store_true',
                         help='prevents examples from printing')

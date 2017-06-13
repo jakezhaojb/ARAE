@@ -73,9 +73,9 @@ def write_sentences(write_path, premises, hypotheses, append=False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--in_path', type=str, default="../Data/snli_1.0",
-                        help='path to nli data')
+                        help='path to snli data')
     parser.add_argument('--out_path', type=str, default="../Data/snli_lm",
-                        help='path to write lm data to')
+                        help='path to write snli language modeling data to')
     args = parser.parse_args()
 
     # make out-path directory if it doesn't exist
@@ -83,7 +83,7 @@ if __name__ == "__main__":
         os.makedirs(args.out_path)
         print("Creating directory "+args.out_path)
 
-    # process and write test.txt, dev.txt, and train.txt files
+    # process and write test.txt and train.txt files
     premises, hypotheses = \
         transform_data(os.path.join(args.in_path, "snli_1.0_test.jsonl"))
     write_sentences(write_path=os.path.join(args.out_path, "test.txt"),
