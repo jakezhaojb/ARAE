@@ -5,6 +5,9 @@ from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from utils import to_gpu
+import json
+import os
+import numpy as np
 
 
 class MLP_D(nn.Module):
@@ -268,3 +271,71 @@ class Seq2Seq(nn.Module):
         max_indices = torch.cat(all_indices, 1)
 
         return max_indices
+
+
+def load_models(load_path):
+    model_args = json.load(open("{}/args.json".format(load_path), "r"))
+    word2idx = json.load(open("{}/vocab.json".format(load_path), "r"))
+    idx2word = {v: k for k, v in word2idx.items()}
+
+    autoencoder = Seq2Seq(emsize=model_args['emsize'],
+                          nhidden=model_args['nhidden'],
+                          ntokens=model_args['ntokens'],
+                          nlayers=model_args['nlayers'],
+                          hidden_init=model_args['hidden_init'])
+    gan_gen = MLP_G(ninput=model_args['z_size'],
+                    noutput=model_args['nhidden'],
+                    layers=model_args['arch_g'])
+    gan_disc = MLP_D(ninput=model_args['nhidden'],
+                     noutput=1,
+                     layers=model_args['arch_d'])
+
+    print('Loading models from'+load_path)
+    ae_path = os.path.join(load_path, "autoencoder_model.pt")
+    gen_path = os.path.join(load_path, "gan_gen_model.pt")
+    disc_path = os.path.join(load_path, "gan_disc_model.pt")
+
+    autoencoder.load_state_dict(torch.load(ae_path))
+    gan_gen.load_state_dict(torch.load(gen_path))
+    gan_disc.load_state_dict(torch.load(disc_path))
+    return model_args, idx2word, autoencoder, gan_gen, gan_disc
+
+
+def generate(autoencoder, gan_gen, z, vocab, sample, maxlen):
+    """
+    Assume noise is batch_size x z_size
+    """
+    if type(z) == Variable:
+        noise = z
+    elif type(z) == torch.FloatTensor or type(z) == torch.cuda.FloatTensor:
+        noise = Variable(z, volatile=True)
+    elif type(z) == np.ndarray:
+        noise = Variable(torch.from_numpy(z).float(), volatile=True)
+    else:
+        raise ValueError("Unsupported input type (noise): {}".format(type(z)))
+
+    gan_gen.eval()
+    autoencoder.eval()
+
+    # generate from random noise
+    fake_hidden = gan_gen(noise)
+    max_indices = autoencoder.generate(hidden=fake_hidden,
+                                       maxlen=maxlen,
+                                       sample=sample)
+
+    max_indices = max_indices.data.cpu().numpy()
+    sentences = []
+    for idx in max_indices:
+        # generated sentence
+        words = [vocab[x] for x in idx]
+        # truncate sentences to first occurrence of <eos>
+        truncated_sent = []
+        for w in words:
+            if w != '<eos>':
+                truncated_sent.append(w)
+            else:
+                break
+        sent = " ".join(truncated_sent)
+        sentences.append(sent)
+
+    return sentences
