@@ -8,11 +8,7 @@
 
 1) Download and unzip https://drive.google.com/drive/folders/0B4IZ6lmAKTWJSE9UNFYzUkphaVU?usp=sharing.
 
-2) Run 
-
-`python generate.py --load_path ./maxlen30`
-
-(Requires CUDA and Python)
+2) Run `python generate.py --load_path ./maxlen30` (Requires CUDA and Python)
 
 ## Example Generations
 
