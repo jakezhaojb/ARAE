@@ -36,7 +36,3 @@ To interpolate:
 th interpolate.lua --imgname int.png --modelpath ./$savename/model.t7
 ```
 The output examplar interpolation: `int.png`.
-
-Example of interpolation:      
-![int](int.png "Example of interpolation")
-
