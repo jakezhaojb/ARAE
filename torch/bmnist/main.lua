@@ -122,7 +122,6 @@ for i = 1, #arch_dec-1 do
 end
 Dec:add(nn.Linear(arch_dec[#arch_dec], 784*2))
 Dec:add(nn.View(2,28,28):setNumInputDims(1))
-Dec:add(nn.Tanh())
 -- AE with no noise layer
 AE_ = nn.Sequential():add(Enc):add(Dec)
 -- criterion training AE
@@ -177,6 +176,7 @@ local function initModel(model, std)
 end
 initModel(D, 0.02)
 initModel(G, 0.02)
+print(Enc, Dec, D, G)
 
 ---------------------------------------
 -------------- Train ------------------
