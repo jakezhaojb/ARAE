@@ -2,7 +2,9 @@ import os
 import torch
 import numpy as np
 import random
-import kenlm
+
+def load_kenlm():
+    import kenlm
 
 
 def to_gpu(gpu, var):
@@ -173,6 +175,7 @@ def train_ngram_lm(kenlm_path, data_path, output_path, N):
               " >"+os.path.join(curdir, output_path)
     os.system("cd "+os.path.join(kenlm_path, 'build')+" && "+command)
 
+    load_kenlm()
     # create language model
     model = kenlm.Model(output_path)
 
