@@ -1,5 +1,9 @@
 # PyTorch ARAE for Text Generation
 
+### Requirements
+- PyTorch, JSON, Argparse
+- (Optional) KenLM (https://github.com/kpu/kenlm)
+
 ## Pretrained Version
 
 1) Download and unzip https://drive.google.com/drive/folders/0B4IZ6lmAKTWJSE9UNFYzUkphaVU?usp=sharing.
@@ -110,31 +114,6 @@ A group of <oov> walks is wearing sunglasses in a white box .
 A group of <oov> woman is putting people in a white shop with the window .
 ```
 
-## Training 
-
-### Model Details
-- We train on sentences that have up to 30 tokens and take the most likely word (argmax) when decoding (there is an option to sample when decoding as well).
-- For a numerical way for early stopping, after the model has trained for a specified minimum number of epochs, we periodically train a n-gram language model (with modified Kneser-Ney and Laplacian smoothing) on 100,000 generated sentences and evaluate the perplexity of real sentences from a held-out test set. If the perplexity does not improve over that of the lowest perplexity seen for a certain number of iterations (patience), we end training.
-
-### Requirements
-- Python 2.7
-- PyTorch, JSON, Argparse
-- KenLM (https://github.com/kpu/kenlm)
-
-### KenLM Installation:
-- Download stable release and unzip: http://kheafield.com/code/kenlm.tar.gz
-- Need Boost >= 1.42.0 and bjam
-    - Ubuntu: `sudo apt-get install libboost-all-dev`
-    - Mac: `brew install boost; brew install bjam`
-- Run within kenlm directory:
-    ```bash
-    mkdir -p build
-    cd build
-    cmake ..
-    make -j 4
-    ```
-- `pip install https://github.com/kpu/kenlm/archive/master.zip`
-- For more information on KenLM see: https://github.com/kpu/kenlm and http://kheafield.com/code/kenlm/
 
 ## Data Preparation
 
@@ -151,5 +130,28 @@ If you would like to train a text ARAE on another dataset, simply
 2) Run training command with the `--data_path` argument pointing to that data directory.
 
 ## Train
-`python main.py --data_path PATH_TO_PROCESSED_DATA --kenlm_path PATH_TO_KENLM_DIRECTORY`
+`python main.py --data_path PATH_TO_PROCESSED_DATA [--kenlm_path PATH_TO_KENLM_DIRECTORY]`
 - When training on default parameters the training script will output the logs, generations, and saved models to: `./output/example`
+
+### Model Details
+- We train on sentences that have up to 30 tokens and take the most likely word (argmax) when decoding (there is an option to sample when decoding as well).
+- For a numerical way for early stopping, after the model has trained for a specified minimum number of epochs, we periodically train a n-gram language model (with modified Kneser-Ney and Laplacian smoothing) on 100,000 generated sentences and evaluate the perplexity of real sentences from a held-out test set. If the perplexity does not improve over that of the lowest perplexity seen for a certain number of iterations (patience), we end training.
+
+
+### KenLM Installation:
+- Download stable release and unzip: http://kheafield.com/code/kenlm.tar.gz
+- Need Boost >= 1.42.0 and bjam
+    - Ubuntu: `sudo apt-get install libboost-all-dev`
+    - Mac: `brew install boost; brew install bjam`
+- Run within kenlm directory:
+    ```bash
+    mkdir -p build
+    cd build
+    cmake ..
+    make -j 4
+    ```
+- `pip install https://github.com/kpu/kenlm/archive/master.zip`
+- For more information on KenLM see: https://github.com/kpu/kenlm and http://kheafield.com/code/kenlm/
+
+
+
