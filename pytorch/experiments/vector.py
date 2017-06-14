@@ -95,7 +95,7 @@ def alter(args):
 
             # Compute the feature distribution associated with this point.
             samples = gen_samples(vec)
-            feats = [f]
+            feats = [f] * 50
             for s in samples:
                 feats.append(featurize(nlp(s)))
 
@@ -111,7 +111,7 @@ def alter(args):
                 orig = temp
 
             # Interpolate with original.
-            vec = 0.1 * orig + 0.9 * update
+            vec = 0.2 * orig + 0.8 * update
 
         print()
         print()
