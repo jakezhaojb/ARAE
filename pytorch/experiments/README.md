@@ -1,4 +1,11 @@
 
+# vector.py
+
+An experiment to try to change the content of a sentence based my modifying the
+latent variable z. The alteration is done by sampling sentences from a fixed
+z, then updating towards the mean of the desired feature. We do this repeatedly
+until the argmax generation has the correct feature.
+
 
 ## Requirements
 
@@ -10,14 +17,16 @@
 
 > python -m experiments.vector gen --dump  features.pkl --load_path maxlen15
 
-2) Attempt to alter new sentences based on the mean vector of VERB_driving sentences.
+2) Attempt to alter new sentences based on the mean vector of `VERB_standingssss` sentences.
 
 > python -m experiments.vector alter --dump  features.pkl --alter VERB_standing --load_path maxlen15
 
 
 ## Examples
 
-"""
+
+
+```
 Sent  0 : 	  A people are sitting on a close trail . 	
 Sent  1 : 	  Boys are sitting up a volleyball . 	
 Sent  2 : 	  people are standing up a big . 	
@@ -64,4 +73,4 @@ Sent  0 : 	  A man rides the motorcycle or fire coming across the water .
 Sent  1 : 	  The man is in winter gear as the traffic lights water from the crowd . 	
 Sent  2 : 	  The man is holding up the landscape object near a body of water . 	
 Sent  3 : 	  There is standing up of the side near boats through a block of water . 
-"""
+```
