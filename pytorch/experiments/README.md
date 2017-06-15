@@ -1,4 +1,48 @@
 
+# walk.py
+
+Computes a random vector and then generates many sentences with a small noise
+perturbation. It prints new sentences and highlights how they differ from the original. 
+
+
+## Examples
+
+```
+A man goes in front of a skateboard .
+A *snowboarder crashes* in a *board at the hospital* . 
+A man goes in a *cabin* . 
+A man *pours into the mud* . 
+A man goes in *midair* . 
+A man goes *into the mud* . 
+A man goes in front of a *telescope* . 
+A man goes in *their driveway* . 
+A man goes in . 
+A man goes in front of *the* skateboard . 
+A *snowboarder crashes* in front of a *bed* . 
+A man goes in *the mud* . 
+A man *pours* in front of a *lake* . 
+
+Workers clean a very colorful street .
+Workers *enjoy* a very colorful . 
+*Women enjoy* a very *quiet* . 
+Workers clean a *long white area* . 
+Workers *enjoy* a very colorful *hallway* . 
+Workers *carry* a very colorful *and empty* . 
+Workers clean a *long white structure* . 
+Workers *enjoy* a very colorful *narrow* . 
+Workers clean a very *tall structure* . 
+*Women enjoy* a *green sunny* . 
+Workers clean a *long white balloon* . 
+*Women enjoy* a *green outdoor* . 
+*Women enjoy* a *green sunny weather* . 
+Workers *enjoy* a very colorful *environment* . 
+Workers *enjoy* a *green construction and* . 
+*Women enjoy* a *green outdoor staircase* . 
+Workers *enjoy* a very colorful *walkway* . 
+*Women enjoy* a very *green hallway* . 
+Workers *enjoy* a very colorful *city* . 
+```
+
 # vector.py
 
 An experiment to try to change the content of a sentence based my modifying the
