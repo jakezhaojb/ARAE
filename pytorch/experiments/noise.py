@@ -32,8 +32,8 @@ def main(args):
                     if tag == "equal":
                         print(" ".join(b[j1:j2]), end=" ")
                     if tag == "replace":
-                        # print(BOLD + " ".join(b[j1:j2]) + ENDC, end=" ")
-                        print("*" + " ".join(b[j1:j2]) + "*", end=" ")
+                        print(BOLD + " ".join(b[j1:j2]) + ENDC, end=" ")
+                        # print("*" + " ".join(b[j1:j2]) + "*", end=" ")
                 print()
         print()
 
