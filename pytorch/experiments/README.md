@@ -7,7 +7,7 @@ perturbation. It prints new sentences and highlights how they differ from the or
 
 ## Examples
 
-```
+
 A man goes in front of a skateboard .
 A *snowboarder crashes* in a *board at the hospital* . 
 A man goes in a *cabin* . 
@@ -22,6 +22,7 @@ A *snowboarder crashes* in front of a *bed* .
 A man goes in *the mud* . 
 A man *pours* in front of a *lake* . 
 
+```
 Workers clean a very colorful street .
 Workers *enjoy* a very colorful . 
 *Women enjoy* a very *quiet* . 
