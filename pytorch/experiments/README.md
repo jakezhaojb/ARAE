@@ -8,8 +8,9 @@ perturbation. It prints new sentences and highlights how they differ from the or
 ## Examples
 
 
-A man goes in front of a skateboard .
-A *snowboarder crashes* in a *board at the hospital* . 
+### A man goes in front of a skateboard .
+
+A _snowboarder crashes_ in a _board at the hospital_ . 
 A man goes in a *cabin* . 
 A man *pours into the mud* . 
 A man goes in *midair* . 
