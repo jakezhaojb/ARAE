@@ -8,19 +8,30 @@ perturbation. It prints new sentences and highlights how they differ from the or
 ## Examples
 
 
-### A man goes in front of a skateboard .
+_A man goes in front of a skateboard ._
 
 A _snowboarder crashes_ in a _board at the hospital_ . 
-A man goes in a *cabin* . 
-A man *pours into the mud* . 
-A man goes in *midair* . 
-A man goes *into the mud* . 
-A man goes in front of a *telescope* . 
-A man goes in *their driveway* . 
+
+A man goes in a _cabin_ . 
+
+A man _pours into the mud_ . 
+
+A man goes in _midair_ .
+
+A man goes _into the mud_ . 
+
+A man goes in front of a _telescope_ . 
+
+A man goes in _their driveway_ . 
+
 A man goes in . 
+
 A man goes in front of *the* skateboard . 
+
 A *snowboarder crashes* in front of a *bed* . 
-A man goes in *the mud* . 
+
+A man goes in _the mud_ . 
+
 A man *pours* in front of a *lake* . 
 
 ```
