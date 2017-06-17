@@ -415,9 +415,8 @@ def grad_hook(grad):
     # Gradient norm: regularize to be same
     # code_grad_gan * code_grad_ae / norm(code_grad_gan)
     if args.enc_grad_norm:
-        ae_gan_grad = grad * autoencoder.grad_norm.expand_as(grad)
-        gan_norm = torch.norm(grad, 2, 1)
-        normed_grad = torch.div(ae_gan_grad, gan_norm.expand_as(grad))
+        gan_norm = torch.norm(grad, 2, 1).detach().data.mean()
+        normed_grad = grad * autoencoder.grad_norm / gan_norm
     else:
         normed_grad = grad
 

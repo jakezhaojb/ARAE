@@ -164,7 +164,7 @@ class Seq2Seq(nn.Module):
 
     def store_grad_norm(self, grad):
         norm = torch.norm(grad, 2, 1)
-        self.grad_norm = norm.detach()
+        self.grad_norm = norm.detach().data.mean()
         return grad
 
     def forward(self, indices, lengths, noise, encode_only=False):

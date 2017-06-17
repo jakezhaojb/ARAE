@@ -124,7 +124,7 @@ A group of <oov> woman is putting people in a white shop with the window .
     - The script will create the output directory if it doesn't already exist
 - For more information on SNLI see: https://nlp.stanford.edu/projects/snli/
 
-### Other Datasets
+### Your Customized Datasets
 If you would like to train a text ARAE on another dataset, simply
 1) Create a data directory with a `train.txt` and `test.txt` files with line delimited sentences.
 2) Run training command with the `--data_path` argument pointing to that data directory.
@@ -132,11 +132,11 @@ If you would like to train a text ARAE on another dataset, simply
 ## Train
 1) To train without KenLM: 
 
-    `python train.py --data_path PATH_TO_PROCESSED_DATA --no_earlystopping`
+    `python train.py --data_path PATH_TO_PROCESSED_DATA --cuda --no_earlystopping`
 
 2) To train with KenLM for early stopping: 
 
-    `python train.py --data_path PATH_TO_PROCESSED_DATA --kenlm_path PATH_TO_KENLM_DIRECTORY`
+    `python train.py --data_path PATH_TO_PROCESSED_DATA --cuda --kenlm_path PATH_TO_KENLM_DIRECTORY`
 
 - When training on default parameters the training script will output the logs, generations, and saved models to: `./output/example`
 
