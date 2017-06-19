@@ -18,7 +18,7 @@ paths.dofile('utils.lua')
 cmd = torch.CmdLine()
 -- general setting
 cmd:option('-gpuid', 1, [[device id]])
-cmd:option('-save_name', '69', [[Save name]])
+cmd:option('-save_name', 'save0', [[Save name]])
 cmd:option('-ndisp', 8, [[number of display sentences]])
 -- data setting
 cmd:option('-data_file', 'SNLI/snli-15-train.hdf5', [[Path to the training *.hdf5 file from preprocess.py]])
@@ -177,32 +177,32 @@ function train(train_data, valid_data)
    end
    init_layer = {}
    for L = 1, opt.num_layers do
-     table.insert(init_layer, h_init:clone())
-     table.insert(init_layer, h_init:clone())
+      table.insert(init_layer, h_init:clone())
+      table.insert(init_layer, h_init:clone())
    end
    init_layer_query = {}
    for L = 1, opt.num_layers_query do
-     table.insert(init_layer_query, h_init_query:clone())
-     table.insert(init_layer_query, h_init_query:clone())
+      table.insert(init_layer_query, h_init_query:clone())
+      table.insert(init_layer_query, h_init_query:clone())
    end
    
    --[[ reset init_layer or init_layer_query  ]]--
    function reset_state(state, batch_l, t)
-     if t == nil then
-       local u = {}
-       for i = 1, #state do
-         state[i]:zero()
-         table.insert(u, state[i][{{1, batch_l}}])
-       end
-       return u
-     else
-       local u = {[t] = {}}
-       for i = 1, #state do
-         state[i]:zero()
-         table.insert(u[t], state[i][{{1, batch_l}}])
-       end
-       return u
-     end
+      if t == nil then
+         local u = {}
+         for i = 1, #state do
+       state[i]:zero()
+       table.insert(u, state[i][{{1, batch_l}}])
+         end
+         return u
+      else
+         local u = {[t] = {}}
+         for i = 1, #state do
+       state[i]:zero()
+       table.insert(u[t], state[i][{{1, batch_l}}])
+         end
+         return u
+      end
    end
 
    --[[ data augmentation wrapper ]]--
@@ -220,11 +220,11 @@ function train(train_data, valid_data)
          target = source[{{2, source_l}}]
       end
       if opt.reverse == 1 then
-        local new_target = target:clone()
-        for j = 1, new_target:size(1) - 1 do
- 	 new_target[j]:copy(target[target_l-j])
-        end
-        target = new_target
+         local new_target = target:clone()
+         for j = 1, new_target:size(1) - 1 do
+            new_target[j]:copy(target[target_l-j])
+         end
+         target = new_target
       end     
       return {source, source_l, target, target_l, batch_l}
    end
