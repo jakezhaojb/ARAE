@@ -15,7 +15,6 @@ local data = torch.class("data")
 
 --[[ constructor ]]--
 function data:__init(opt, data_file)
-   self.opt = opt
    local f = hdf5.open(data_file, 'r')
    self.source = f:read('source'):all()
    self.batch_l = f:read('batch_l'):all()
@@ -32,6 +31,12 @@ function data:__init(opt, data_file)
      table.insert(self.batches, {source_i, self.source_l[i], target_i, self.source_l[i]-1,
     			self.batch_l[i]})
    end
+   -- pre-allocated buffers
+   self.source_ = opt.gpuid>=0 and torch.CudaTensor() or torch.Tensor
+   self.source_l_ = 0
+   self.target_ = opt.gpuid>=0 and torch.CudaTensor() or torch.Tensor
+   self.target_l_ = 0
+   self.batch_l_ = 0
 end
 
 --[[ size function ]]--
@@ -49,11 +54,13 @@ function data.__index(self, idx)
       local target = self.batches[idx][3]
       local target_l = self.batches[idx][4]
       local batch_l = self.batches[idx][5]
-      if self.opt.gpuid >= 0 then
-         source = source:cuda()
-         target = target:cuda()
-      end
-      return {source, source_l, target, target_l, batch_l}    
+      -- fill up buffers
+      self.source_:resize(unpack(source:size():totable())):copy(source)
+      self.source_l_ = source_l
+      self.target_:resize(unpack(target:size():totable())):copy(target)
+      self.target_l_ = target_l
+      self.batch_l_ = batch_l
+      return {self.source_, self.source_l_, self.target_, self.target_l_, self.batch_l_}
    end
 end
 
