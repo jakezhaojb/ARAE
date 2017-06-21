@@ -48,7 +48,6 @@ cmd:option('-radius', 0.2, [[Standard deviation of the noise added to the code v
 cmd:option('-radius_anne', 0.995, [[Noise std exponential decay factor]])
 -- training settings
 cmd:option('-epochs', 8, [[Number of training epochs]])
-cmd:option('-niters_ae', 1, [[Number of iters trained on RNN autoencoder within each iteration]])
 cmd:option('-niters_gan', 1, [[Number of iters trained on WGAN within each iteration]])
 cmd:option('-niters_gan_d', 5, [[Number of iterations training WGAN critic for each loop]])
 cmd:option('-save_every', 50000, [[Save every this many minibatches]])
@@ -59,7 +58,7 @@ cmd:option('-gan_z', 100, [[Size of the z vector]])
 cmd:option('-arch_g', '300-300', [[Architecture of the WGAN generator G]])
 cmd:option('-arch_d', '300-300', [[Architecture of the WGAN discriminator/critic D]])
 cmd:option('-gan_clamp', 0.01, [[Weight clamping for the WGAN critic]])
-cmd:option('-gan_toenc', -0.01, [[Multiplier to the gradient from GAN to enc]])
+cmd:option('-gan_toenc', 0.01, [[Multiplier to the gradient from GAN to enc]])
 cmd:option('-enc_grad_norm', true, [[Regularize the gradient from different sources
                                    into the RNN encoder to have the same l2 norm]])
 cmd:option('-niters_gan_schedule', '2-4-6', [[GAN training schedule: niters_gan increments at
@@ -351,168 +350,168 @@ function train(train_data, valid_data)
  
    --[[ train loop function for one epoch ]]--
    function train_batch(data, epoch)
-     -- inventory variables
-     train_loss = 0
-     train_correct = 0
-     start_time = timer:time().real
-     num_words_target = 0
-     num_words_source = 0
-     dcontext_norm_ae, dcontext_norm_gan = 0, 0
-     -- shuffle minibatch order
-     local batch_order = torch.randperm(data.length)
-     -- main loop
-     for iter = 1, data:size() do
-
-       -------------------------------
-       ---- RNN autoencoder phase ----
-       -------------------------------
-       modelae:training()
-       local d = data[batch_order[iter]]
-       local input = data_augment(d)
-       local function fevalAE(x)
-          assert(x == param_ae)
-          gparam_ae:zero()
-          -- fwd/bwd on encoder/decoder
-          local context, encoder_inputs, rnn_state_enc = encoder_forward(input, true)
-          local dcontext, rnn_state_dec = decoder_pass(input, context, rnn_state_enc)
-          dcontext_norm_ae = dcontext:norm()
-          encoder_backward(input, encoder_inputs, dcontext)
-          -- bookkeeping
-          local source, source_l, target, target_l, batch_l = unpack(input)
-          num_words_target = num_words_target + batch_l*target_l
-          num_words_source = num_words_source + batch_l*source_l
-          -- gradient handling
-          if opt.teacher_forcing == 0 then
-             word_vecs_dec.gradWeight:zero()
-          end      
-          grad_norm_ae = grad_clip(gparam_ae)  -- clipping
-          return errAE, gparam_ae
-       end  -- end local function fevalAE(x)
-       if opt.ae_optim == "adam" then
-          optim.adam(fevalAE, param_ae, ae_config)
-       elseif opt.ae_optim == "sgd" then
-          optim.sgd(fevalAE, param_ae, ae_config)
-       end
-
-       --------------------
-       ---- GAN phase -----
-       --------------------
-       modelgan:training()
-       for igan = 1, opt.niters_gan do
-          --- WGAN discriminator/critic pass ---
-          for igan_d = 1, opt.niters_gan_d do
-             -- feed a seen sample within this epoch -- good for early training
-             local d = data[batch_order[torch.random(iter)]] 
-             local input = data_augment(d)
-             noise_z:resize(input[1]:size(2), opt.gan_z):normal()
-             -- real sample code: encoder fwd
-             local real, encoder_inputs, rnn_state_enc = encoder_forward(input, false)
-             local function fevalD(x)
-               assert( x == param_d )
-               gparam_d:zero()
-               x:clamp(-opt.gan_clamp, opt.gan_clamp)
-               -- real sample
-               err_real = gandisc:forward(real)[1]
-               local derr_real = gan_grad:fill(1)
-               gandisc:backward(real, derr_real)
-               -- fake sample
-               local fake = gangen:forward(noise_z)
-               err_fake = gandisc:forward(fake)[1]
-               local derr_fake = gan_grad:fill(-1)
-               gandisc:backward(fake, derr_fake)
-               return err_real-err_fake, gparam_d
-             end  -- end local function fevalD
-             if opt.gan_disc_optim == "adam" then
-                optim.adam(fevalD, param_d, d_config)
-             elseif opt.gan_disc_optim == "sgd" then
-                optim.sgd(fevalD, param_d, d_config)
-             elseif opt.gan_disc_optim == "rmsprop" then
-                optim.rmsprop(fevalD, param_d, d_config)	 
-             end
-             
-             ---- GAN -> RNN encoder ----
-             local function fevalAE_fromGAN(x)
-                assert( x == param_ae )
-                gparam_ae:zero()
-                -- GAN discriminator pass
-                local err_real_ = gandisc:forward(real)[1]
-                local derr_real = gan_grad:fill(1)
-                local derr_context = gandisc:updateGradInput(real, derr_real)
-                local context_input = rnn_state_enc[input[2]][#rnn_state_enc[input[2]]]
-                local dcontext = transferU:backward(context_input, derr_context)
-                -- gradient norm regularize to be same
-                dcontext_norm_gan = dcontext:norm()
-                if opt.enc_grad_norm then
-                   local ratio = dcontext_norm_gan / dcontext_norm_ae
-                   if ratio > 0 then dcontext:div(ratio) end
-                end  -- end if opt.enc_grad_norm
-                dcontext:mul(-math.abs(opt.gan_toenc))
-                -- encoder bwd pass
-                encoder_backward(input, encoder_inputs, dcontext)
-                grad_norm_from_gan = grad_clip(gparam_ae)
-                return err_real_, gparam_ae
-             end  -- end local function fevalAE_fromGAN
-             if opt.ae_optim == "adam" then
-                optim.adam(fevalAE_fromGAN, param_ae, ae_config)
-             elseif opt.ae_optim == "sgd" then
-                optim.sgd(fevalAE_fromGAN, param_ae, ae_config)
-             end
-          end  -- end for igan_d
+      -- inventory variables
+      train_loss = 0
+      train_correct = 0
+      start_time = timer:time().real
+      num_words_target = 0
+      num_words_source = 0
+      dcontext_norm_ae, dcontext_norm_gan = 0, 0
+      -- shuffle minibatch order
+      local batch_order = torch.randperm(data.length)
+      -- main loop
+      for iter = 1, data:size() do
  
-          --- WGAN generator pass ---
-          noise_z:resize(data[1][1]:size(2), opt.gan_z):normal()
-          local function fevalG(x)
-             assert( x == param_g )
-             gparam_g:zero()
-             -- fwd/bwd
-             local fake = gangen:forward(noise_z)
-             errG_fake = gandisc:forward(fake)[1]
-             local derr_fake = gan_grad:fill(1)
-             local derr_fake = gandisc:updateGradInput(fake, derr_fake)
-             gangen:backward(noise_z, derr_fake)
-             return errG_fake, gparam_g
-          end  -- end local function fevalG
-          if opt.gan_gen_optim == "adam" then
-             optim.adam(fevalG, param_g, g_config)
-          elseif opt.gan_gen_optim == "sgd" then
-             optim.sgd(fevalG, param_g, g_config)
-          elseif opt.gan_gen_optim == "rmsprop" then
-             optim.rmsprop(fevalG, param_g, g_config)	   
-          end
-       end  -- end for igan = 1
-
-       --------------------
-       ----- logging ------
-       --------------------
-       modelgan:evaluate()
-       modelae:evaluate()
-       -- frequent print/log WGAN related stats
-       if opt.niters_gan>0 and iter%100==0 then
-          print_(('errD_real: %.4e, errD_fake: %.4e, errD: %.4e, errG_fake: %.4e'):format(
-               err_real, err_fake, -(err_real-err_fake), errG_fake))
-       end
-       -- print/log generated text, with the nearest neighbor retrieval on the valid set
-       if opt.niters_gan>0 and iter%1000==0 then
-          -- run eval: to get the code_cache for nearest neighbor retrieval
-          local _ = eval(valid_data)
-          -- generate text
-          gentext(opt.ndisp)
-       end
-       -- non-frequent print/log comprehensive stats
-       local time_taken = timer:time().real - start_time
-       if iter % opt.print_every == 0 then
-          print_(('Epoch: %d, Batch: %d,  PPL: %.2f, Acc: %.2f, '
-               .. '|Param|: %.2f, |GParamAE|: %.4e, |GParamF|: %.4e, '
-               .. 'Rs: %.4e, nGAN: %d, LR: %.4f, Elap: %d tokens/sec'):format(
-               epoch, iter, math.exp(train_loss/num_words_target),
-               train_correct/num_words_target, param_ae:norm(),
-               grad_norm_ae, grad_norm_from_gan or 0, opt.radius,
-               opt.niters_gan, opt.learning_rate_ae, num_words_target/time_taken))
-       end
-       -- noise radius annealing, per 100 mini-batches
-       opt.radius = iter%100==0 and opt.radius*opt.radius_anne or opt.radius
-     end -- end for iter = 1, data:size()
-     return train_correct, num_words_target
+        -------------------------------
+        ---- RNN autoencoder phase ----
+        -------------------------------
+        modelae:training()
+        local d = data[batch_order[iter]]
+        local input = data_augment(d)
+        local function fevalAE(x)
+           assert(x == param_ae)
+           gparam_ae:zero()
+           -- fwd/bwd on encoder/decoder
+           local context, encoder_inputs, rnn_state_enc = encoder_forward(input, true)
+           local dcontext, rnn_state_dec = decoder_pass(input, context, rnn_state_enc)
+           dcontext_norm_ae = dcontext:norm()
+           encoder_backward(input, encoder_inputs, dcontext)
+           -- bookkeeping
+           local source, source_l, target, target_l, batch_l = unpack(input)
+           num_words_target = num_words_target + batch_l*target_l
+           num_words_source = num_words_source + batch_l*source_l
+           -- gradient handling
+           if opt.teacher_forcing == 0 then
+              word_vecs_dec.gradWeight:zero()
+           end      
+           grad_norm_ae = grad_clip(gparam_ae)  -- clipping
+           return errAE, gparam_ae
+        end  -- end local function fevalAE(x)
+        if opt.ae_optim == "adam" then
+           optim.adam(fevalAE, param_ae, ae_config)
+        elseif opt.ae_optim == "sgd" then
+           optim.sgd(fevalAE, param_ae, ae_config)
+        end
+ 
+        --------------------
+        ---- GAN phase -----
+        --------------------
+        modelgan:training()
+        for igan = 1, opt.niters_gan do
+           --- WGAN discriminator/critic pass ---
+           for igan_d = 1, opt.niters_gan_d do
+              -- feed a seen sample within this epoch -- good for early training
+              local d = data[batch_order[torch.random(iter)]] 
+              local input = data_augment(d)
+              noise_z:resize(input[1]:size(2), opt.gan_z):normal()
+              -- real sample code: encoder fwd
+              local real, encoder_inputs, rnn_state_enc = encoder_forward(input, false)
+              local function fevalD(x)
+                 assert( x == param_d )
+                 gparam_d:zero()
+                 x:clamp(-opt.gan_clamp, opt.gan_clamp)
+                 -- real sample
+                 err_real = gandisc:forward(real)[1]
+                 local derr_real = gan_grad:fill(1)
+                 gandisc:backward(real, derr_real)
+                 -- fake sample
+                 local fake = gangen:forward(noise_z)
+                 err_fake = gandisc:forward(fake)[1]
+                 local derr_fake = gan_grad:fill(-1)
+                 gandisc:backward(fake, derr_fake)
+                 return err_real-err_fake, gparam_d
+              end  -- end local function fevalD
+              if opt.gan_disc_optim == "adam" then
+                 optim.adam(fevalD, param_d, d_config)
+              elseif opt.gan_disc_optim == "sgd" then
+                 optim.sgd(fevalD, param_d, d_config)
+              elseif opt.gan_disc_optim == "rmsprop" then
+                 optim.rmsprop(fevalD, param_d, d_config)	 
+              end
+              
+              ---- GAN -> RNN encoder ----
+              local function fevalAE_fromGAN(x)
+                 assert( x == param_ae )
+                 gparam_ae:zero()
+                 -- GAN discriminator pass
+                 local err_real_ = gandisc:forward(real)[1]
+                 local derr_real = gan_grad:fill(-1)
+                 local derr_context = gandisc:updateGradInput(real, derr_real)
+                 local context_input = rnn_state_enc[input[2]][#rnn_state_enc[input[2]]]
+                 local dcontext = transferU:backward(context_input, derr_context)
+                 -- gradient norm regularize to be same
+                 dcontext_norm_gan = dcontext:norm()
+                 if opt.enc_grad_norm then
+                    local ratio = dcontext_norm_gan / dcontext_norm_ae
+                    if ratio > 0 then dcontext:div(ratio) end
+                 end  -- end if opt.enc_grad_norm
+                 dcontext:mul(math.abs(opt.gan_toenc))
+                 -- encoder bwd pass
+                 encoder_backward(input, encoder_inputs, dcontext)
+                 grad_norm_from_gan = grad_clip(gparam_ae)
+                 return err_real_, gparam_ae
+              end  -- end local function fevalAE_fromGAN
+              if opt.ae_optim == "adam" then
+                 optim.adam(fevalAE_fromGAN, param_ae, ae_config)
+              elseif opt.ae_optim == "sgd" then
+                 optim.sgd(fevalAE_fromGAN, param_ae, ae_config)
+              end
+           end  -- end for igan_d
+  
+           --- WGAN generator pass ---
+           noise_z:resize(data[1][1]:size(2), opt.gan_z):normal()
+           local function fevalG(x)
+              assert( x == param_g )
+              gparam_g:zero()
+              -- fwd/bwd
+              local fake = gangen:forward(noise_z)
+              errG_fake = gandisc:forward(fake)[1]
+              local derr_fake = gan_grad:fill(1)
+              local derr_fake = gandisc:updateGradInput(fake, derr_fake)
+              gangen:backward(noise_z, derr_fake)
+              return errG_fake, gparam_g
+           end  -- end local function fevalG
+           if opt.gan_gen_optim == "adam" then
+              optim.adam(fevalG, param_g, g_config)
+           elseif opt.gan_gen_optim == "sgd" then
+              optim.sgd(fevalG, param_g, g_config)
+           elseif opt.gan_gen_optim == "rmsprop" then
+              optim.rmsprop(fevalG, param_g, g_config)	   
+           end
+        end  -- end for igan = 1
+ 
+        --------------------
+        ----- logging ------
+        --------------------
+        modelgan:evaluate()
+        modelae:evaluate()
+        -- frequent print/log WGAN related stats
+        if opt.niters_gan>0 and iter%100==0 then
+           print_(('errD_real: %.4e, errD_fake: %.4e, errD: %.4e, errG_fake: %.4e'):format(
+                err_real, err_fake, -(err_real-err_fake), errG_fake))
+        end
+        -- print/log generated text, with the nearest neighbor retrieval on the valid set
+        if opt.niters_gan>0 and iter%1000==0 then
+           -- run eval: to get the code_cache for nearest neighbor retrieval
+           local _ = eval(valid_data)
+           -- generate text
+           gentext(opt.ndisp)
+        end
+        -- non-frequent print/log comprehensive stats
+        local time_taken = timer:time().real - start_time
+        if iter % opt.print_every == 0 then
+           print_(('Epoch: %d, Batch: %d,  PPL: %.2f, Acc: %.2f, '
+                .. '|Param|: %.2f, |GParamAE|: %.4e, |GParamF|: %.4e, '
+                .. 'Rs: %.4e, nGAN: %d, LR: %.4f, Elap: %d tokens/sec'):format(
+                epoch, iter, math.exp(train_loss/num_words_target),
+                train_correct/num_words_target, param_ae:norm(),
+                grad_norm_ae, grad_norm_from_gan or 0, opt.radius,
+                opt.niters_gan, opt.learning_rate_ae, num_words_target/time_taken))
+        end
+        -- noise radius annealing, per 100 mini-batches
+        opt.radius = iter%100==0 and opt.radius*opt.radius_anne or opt.radius
+      end -- end for iter = 1, data:size()
+      return train_correct, num_words_target
    end  -- end funcion train_batch
 
    ----- overall training loop -----
@@ -551,45 +550,45 @@ function eval(data)
    -- iterate through the data
    local id = 1
    for i = 1, data:size() do    
-     local d = data[i]
-     local input = data_augment(d)
-     local source, source_l, target, target_l, batch_l = unpack(input)
-     local rnn_state_enc = reset_state(init_layer, batch_l, 0)
-     local pad = pad_proto[{{1, batch_l}}]
-     local encoder_inputs = {}
-     -- encoder fwd
-     for t = 1, source_l do
-         encoder_clones[t]:evaluate()
-         encoder_inputs[t] = {source[t], table.unpack(rnn_state_enc[t-1])}
-         rnn_state_enc[t] = encoder_clones[t]:forward(encoder_inputs[t])
-     end  -- end for t = 1, 
-     local context_input = rnn_state_enc[source_l][#rnn_state_enc[source_l]]
-     local context = transferU:forward(context_input)
-     -- caching the code into code_cache
-     code_cache:narrow(1, id, source:size(2)):copy(context)
-     -- decoder fwd
-     local rnn_state_dec = reset_state(init_layer_query, batch_l, 0)
-     if opt.init_dec == 1 then
-        rnn_state_dec[0][#rnn_state_dec[0]]:copy(transferL:forward(context))
-     end
-     local decoder_inputs = {}
-     local pred_argmax
-     for t = 1, target_l do
-        decoder_clones[t]:evaluate()
-        if t == 1 or opt.teacher_forcing == 0 then
-           decoder_inputs[t] = {pad, table.unpack(rnn_state_dec[t-1])}
-        else
-           decoder_inputs[t] = {pred_argmax[{{}, 1}], table.unpack(rnn_state_dec[t-1])}
-        end	 -- end if t == 1 or
-        rnn_state_dec[t] = decoder_clones[t]:forward(decoder_inputs[t])
-        local pred_input = {rnn_state_dec[t][#rnn_state_dec[t]], context}
-        local pred = wordgen:forward(pred_input)
-        loss = loss + criterion:forward(pred, target[t])
-        __, pred_argmax = pred:max(2)
-        correct = correct + pred_argmax:cuda():eq(target[t]):sum()      
-     end  -- end for t = 1, target_l
-     total = total + batch_l * target_l
-     id = id + source:size(2)
+      local d = data[i]
+      local input = data_augment(d)
+      local source, source_l, target, target_l, batch_l = unpack(input)
+      local rnn_state_enc = reset_state(init_layer, batch_l, 0)
+      local pad = pad_proto[{{1, batch_l}}]
+      local encoder_inputs = {}
+      -- encoder fwd
+      for t = 1, source_l do
+          encoder_clones[t]:evaluate()
+          encoder_inputs[t] = {source[t], table.unpack(rnn_state_enc[t-1])}
+          rnn_state_enc[t] = encoder_clones[t]:forward(encoder_inputs[t])
+      end  -- end for t = 1, 
+      local context_input = rnn_state_enc[source_l][#rnn_state_enc[source_l]]
+      local context = transferU:forward(context_input)
+      -- caching the code into code_cache
+      code_cache:narrow(1, id, source:size(2)):copy(context)
+      -- decoder fwd
+      local rnn_state_dec = reset_state(init_layer_query, batch_l, 0)
+      if opt.init_dec == 1 then
+         rnn_state_dec[0][#rnn_state_dec[0]]:copy(transferL:forward(context))
+      end
+      local decoder_inputs = {}
+      local pred_argmax
+      for t = 1, target_l do
+         decoder_clones[t]:evaluate()
+         if t == 1 or opt.teacher_forcing == 0 then
+            decoder_inputs[t] = {pad, table.unpack(rnn_state_dec[t-1])}
+         else
+            decoder_inputs[t] = {pred_argmax[{{}, 1}], table.unpack(rnn_state_dec[t-1])}
+         end	 -- end if t == 1 or
+         rnn_state_dec[t] = decoder_clones[t]:forward(decoder_inputs[t])
+         local pred_input = {rnn_state_dec[t][#rnn_state_dec[t]], context}
+         local pred = wordgen:forward(pred_input)
+         loss = loss + criterion:forward(pred, target[t])
+         __, pred_argmax = pred:max(2)
+         correct = correct + pred_argmax:cuda():eq(target[t]):sum()
+      end  -- end for t = 1, target_l
+      total = total + batch_l * target_l
+      id = id + source:size(2)
    end -- end for i = 1, data:size()   
    collectgarbage()
    return correct/total
@@ -684,7 +683,7 @@ function main()
    train_data = data.new(opt, opt.data_file)
    valid_data = data.new(opt, opt.val_data_file)
    opt.max_sent_l = train_data.source:size(2)
-   opt.max_batch_l = train_data.batch_l:max()    
+   opt.max_batch_l = train_data.batch_l:max() 
    print(string.format('Vocab size: %d', train_data.vocab_size))
    print(string.format('Max sent len: %d', opt.max_sent_l))
    ----------------------

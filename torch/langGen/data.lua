@@ -36,25 +36,25 @@ end
 
 --[[ size function ]]--
 function data:size()
-  return self.length
+   return self.length
 end
 
 --[[ __index special method ]]--
 function data.__index(self, idx)
-  if type(idx) == "string" then
-     return data[idx]
-  else
-     local source = self.batches[idx][1]
-     local source_l = self.batches[idx][2]
-     local target = self.batches[idx][3]
-     local target_l = self.batches[idx][4]
-     local batch_l = self.batches[idx][5]
-     if self.opt.gpuid >= 0 then
-        source = source:cuda()
-        target = target:cuda()
-     end
-     return {source, source_l, target, target_l, batch_l}    
-  end
+   if type(idx) == "string" then
+      return data[idx]
+   else
+      local source = self.batches[idx][1]
+      local source_l = self.batches[idx][2]
+      local target = self.batches[idx][3]
+      local target_l = self.batches[idx][4]
+      local batch_l = self.batches[idx][5]
+      if self.opt.gpuid >= 0 then
+         source = source:cuda()
+         target = target:cuda()
+      end
+      return {source, source_l, target, target_l, batch_l}    
+   end
 end
 
 return data
