@@ -610,10 +610,12 @@ function gentext(n)
    -- + genexpo: batch of generated sentences in the tensor format
    -- + gennear: batch of retrieved sentences in the tensor format
    -- + near_context: used for retrival
-   genexpo = genexpo or torch.LongTensor(genlength, n):zero()
-   gennear = gennear or torch.LongTensor(genlength, n):zero()
+   genexpo = genexpo or torch.LongTensor()
+   gennear = gennear or torch.LongTensor()
    near_context = near_context or torch.CudaTensor()
    dist_context = dist_context or torch.CudaTensor()
+   genexpo:resize(genlength, n):zero()
+   gennear:resize(genlength, n):zero()
    -- WGAN generator fwd
    local fake_context = gangen:forward(noise_v)
    near_context:resizeAs(fake_context)

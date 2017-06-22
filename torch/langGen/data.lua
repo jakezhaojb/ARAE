@@ -32,9 +32,9 @@ function data:__init(opt, data_file)
     			self.batch_l[i]})
    end
    -- pre-allocated buffers
-   self.source_ = opt.gpuid>=0 and torch.CudaTensor() or torch.Tensor
+   self.source_ = opt.gpuid>=0 and torch.CudaTensor() or torch.Tensor()
    self.source_l_ = 0
-   self.target_ = opt.gpuid>=0 and torch.CudaTensor() or torch.Tensor
+   self.target_ = opt.gpuid>=0 and torch.CudaTensor() or torch.Tensor()
    self.target_l_ = 0
    self.batch_l_ = 0
 end
