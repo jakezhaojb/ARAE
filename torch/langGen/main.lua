@@ -400,8 +400,7 @@ function train(train_data, valid_data)
         for igan = 1, opt.niters_gan do
            --- WGAN discriminator/critic pass ---
            for igan_d = 1, opt.niters_gan_d do
-              -- feed a seen sample within this epoch -- good for early training
-              local d = data[batch_order[torch.random(iter)]] 
+              local d = data[torch.random(data:size())]
               local input = data_augment(d)
               noise_z:resize(input[1]:size(2), opt.gan_z):normal()
               -- real sample code: encoder fwd
