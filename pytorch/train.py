@@ -523,7 +523,7 @@ for epoch in range(1, args.epochs+1):
             for i in range(args.niters_gan_d):
                 # feed a seen sample within this epoch; good for early training
                 errD, errD_real, errD_fake = \
-                    train_gan_d(train_data[random.randint(0, niter)])
+                    train_gan_d(train_data[random.randint(0, len(train_data)-1)])
 
             # train generator
             for i in range(args.niters_gan_g):
