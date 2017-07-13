@@ -142,6 +142,7 @@ class Seq2Seq(nn.Module):
 
         # Initialize Vocabulary Matrix Weight
         self.embedding.weight.data.uniform_(-initrange, initrange)
+        self.embedding_decoder.weight.data.uniform_(-initrange, initrange)
 
         # Initialize Encoder and Decoder Weights
         for p in self.encoder.parameters():
