@@ -198,7 +198,7 @@ class Seq2Seq(nn.Module):
         hidden = hidden[-1]  # get hidden state of last layer of encoder
 
         # normalize to unit ball (l2 norm of 1) - p=2, dim=1
-        norms = torch.norm(hidden, 2, 1)
+        norms = torch.norm(hidden, 2, 1, keepdim=True)
         hidden = torch.div(hidden, norms.expand_as(hidden))
 
         if noise and self.noise_radius > 0:
