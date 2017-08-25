@@ -1,5 +1,5 @@
 
-# walk.py
+# Walk
 
 Computes a random vector and then generates many sentences with a small noise
 perturbation. It prints new sentences and highlights how they differ from the original. 
