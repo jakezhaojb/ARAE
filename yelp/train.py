@@ -571,7 +571,7 @@ for epoch in range(1, args.epochs+1):
     niter_global = 1
 
     # loop through all batches in training data
-    while niter < len(train1_data):
+    while niter < len(train1_data) and niter < len(train2_data):
 
         # train autoencoder ----------------------------
         for i in range(args.niters_ae):
