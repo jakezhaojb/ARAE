@@ -70,11 +70,11 @@ parser.add_argument('--batch_size', type=int, default=64, metavar='N',
                     help='batch size')
 parser.add_argument('--niters_ae', type=int, default=1,
                     help='number of autoencoder iterations in training')
-parser.add_argument('--niters_gan_d', type=int, default=5,
+parser.add_argument('--niters_gan_d', type=int, default=10,
                     help='number of discriminator iterations in training')
 parser.add_argument('--niters_gan_g', type=int, default=1,
                     help='number of generator iterations in training')
-parser.add_argument('--niters_gan_ae', type=int, default=5,
+parser.add_argument('--niters_gan_ae', type=int, default=10,
                     help='number of autoencoder from discriminator iterations')
 parser.add_argument('--niters_gan_schedule', type=str, default='',
                     help='epoch counts to increase number of GAN training '
