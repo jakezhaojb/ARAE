@@ -15,6 +15,7 @@ from torch.autograd import Variable
 
 from utils import to_gpu, Corpus, batchify
 from models import Seq2Seq2Decoder, Seq2Seq, MLP_D, MLP_G, MLP_Classify
+import shutil
 
 parser = argparse.ArgumentParser(description='PyTorch ARAE for Yelp transfer')
 # Path Arguments
@@ -117,8 +118,9 @@ print(vars(args))
 os.environ['CUDA_VISIBLE_DEVICES'] = args.device_id
 
 # make output directory if it doesn't already exist
-if not os.path.isdir('{}'.format(args.outf)):
-    os.makedirs('{}'.format(args.outf))
+if os.path.isdir(args.outf):
+    shutil.rmtree(args.outf)
+os.makedirs(args.outf)
 
 # Set the random seed manually for reproducibility.
 random.seed(args.seed)
@@ -264,6 +266,7 @@ def train_classifier(whichclass, batch):
 
 
 def grad_hook(grad):
+    global g_factor
     newgrad = grad * Variable(g_factor.cuda())
     return newgrad
 
@@ -340,8 +343,9 @@ def evaluate_autoencoder(whichdecoder, data_source, epoch):
         total_loss += criterion_ce(masked_output/args.temp, masked_target).data
         bcnt += 1
 
-        aeoutf = "%s/%d_autoencoder%d.txt" % (args.outf, epoch, whichdecoder)
-        with open(aeoutf, "a") as f:
+        aeoutf_from = "%s/%d_output_decoder_%d_from.txt".format(args.outf, epoch, whichdecoder)
+        aeoutf_tran = "%s/%d_output_decoder_%d_tran.txt".format(args.outf, epoch, whichdecoder)
+        with open(aeoutf_from, 'w') as f_from, open(aeoutf_tran,'w') as f_trans:
             max_indices1 = \
                 max_indices1.view(output.size(0), -1).data.cpu().numpy()
             max_indices2 = \
@@ -350,45 +354,14 @@ def evaluate_autoencoder(whichdecoder, data_source, epoch):
             for t, idx1, idx2 in zip(target, max_indices1, max_indices2):
                 # real sentence
                 chars = " ".join([corpus.dictionary.idx2word[x] for x in t])
-                f.write(chars)
-                f.write("\n")
-                # autoencoder output sentence
-                chars = " ".join([corpus.dictionary.idx2word[x] for x in idx1])
-                f.write(chars)
-                f.write("\n")
+                f_from.write(chars)
+                f_from.write("\n")
                 # transfer sentence
                 chars = " ".join([corpus.dictionary.idx2word[x] for x in idx2])
-                f.write(chars)
-                f.write("\n\n")
+                f_trans.write(chars)
+                f_trans.write("\n\n")
 
     return total_loss[0] / len(data_source), all_accuracies/bcnt
-
-
-def evaluate_generator(whichdecoder, noise, epoch):
-    gan_gen.eval()
-    autoencoder.eval()
-
-    # generate from fixed random noise
-    fake_hidden = gan_gen(noise)
-    max_indices = \
-        autoencoder.generate(whichdecoder, fake_hidden, maxlen=50, sample=args.sample)
-
-    with open("%s/%s_generated%d.txt" % (args.outf, epoch, whichdecoder), "w") as f:
-        max_indices = max_indices.data.cpu().numpy()
-        for idx in max_indices:
-            # generated sentence
-            words = [corpus.dictionary.idx2word[x] for x in idx]
-            # truncate sentences to first occurrence of <eos>
-            truncated_sent = []
-            for w in words:
-                if w != '<eos>':
-                    truncated_sent.append(w)
-                else:
-                    break
-            chars = " ".join(truncated_sent)
-            f.write(chars)
-            f.write("\n")
-
 
 def train_ae(whichdecoder, batch, total_loss_ae, start_time, i):
     autoencoder.train()
@@ -677,9 +650,6 @@ for epoch in range(1, args.epochs+1):
                        test_loss, math.exp(test_loss), accuracy))
         f.write('-' * 89)
         f.write('\n')
-
-    evaluate_generator(1, fixed_noise, "end_of_epoch_{}".format(epoch))
-    evaluate_generator(2, fixed_noise, "end_of_epoch_{}".format(epoch))
 
     if args.debug:
         continue
