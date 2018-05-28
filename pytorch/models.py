@@ -100,14 +100,14 @@ class MLP_G(nn.Module):
 
 
 class Seq2Seq(nn.Module):
-    def __init__(self, emsize, nhidden, ntokens, nlayers, noise_radius=0.2,
+    def __init__(self, emsize, nhidden, ntokens, nlayers, noise_r=0.2,
                  hidden_init=False, dropout=0, gpu=False):
         super(Seq2Seq, self).__init__()
         self.nhidden = nhidden
         self.emsize = emsize
         self.ntokens = ntokens
         self.nlayers = nlayers
-        self.noise_radius = noise_radius
+        self.noise_r = noise_r
         self.hidden_init = hidden_init
         self.dropout = dropout
         self.gpu = gpu
@@ -184,31 +184,20 @@ class Seq2Seq(nn.Module):
 
         return decoded
 
-    def encode(self, indices, lengths, noise):
+    def encode(self, indices, lengths, noise):  # TODO noise and noise_r
         embeddings = self.embedding(indices)
         packed_embeddings = pack_padded_sequence(input=embeddings,
                                                  lengths=lengths,
                                                  batch_first=True)
 
-        # Encode
         packed_output, state = self.encoder(packed_embeddings)
-
-        hidden, cell = state
-        # batch_size x nhidden
-        hidden = hidden[-1]  # get hidden state of last layer of encoder
-
-        # normalize to unit ball (l2 norm of 1) - p=2, dim=1
-        norms = torch.norm(hidden, 2, 1)
+        hidden = state[0][-1]
+        hidden = hidden / torch.norm(hidden, p=2, dim=1, keepdim=True)
         
-        # For older versions of PyTorch use:
-        hidden = torch.div(hidden, norms.expand_as(hidden))
-        # For newest version of PyTorch (as of 8/25) use this:
-        # hidden = torch.div(hidden, norms.unsqueeze(1).expand_as(hidden))
-
-        if noise and self.noise_radius > 0:
+        if noise and self.noise_r > 0:
             gauss_noise = torch.normal(means=torch.zeros(hidden.size()),
-                                       std=self.noise_radius)
-            hidden = hidden + to_gpu(self.gpu, Variable(gauss_noise))
+                                       std=self.noise_r)
+            hidden = hidden + Variable(gauss_noise.cuda())
 
         return hidden
 
@@ -274,13 +263,15 @@ class Seq2Seq(nn.Module):
             inputs = torch.cat([embedding, hidden.unsqueeze(1)], 2)
 
         max_indices = torch.cat(all_indices, 1)
-
         return max_indices
+    
+    def noise_anneal(self, fac):
+        self.noise_r /= fac
 
 
 def load_models(load_path):
-    model_args = json.load(open("{}/args.json".format(load_path), "r"))
-    word2idx = json.load(open("{}/vocab.json".format(load_path), "r"))
+    model_args = json.load(open(os.path.join(load_path, 'options.json'), 'r'))
+    word2idx = json.load(open(os.path.join(load_path, 'vocab.json'), 'r'))
     idx2word = {v: k for k, v in word2idx.items()}
 
     autoencoder = Seq2Seq(emsize=model_args['emsize'],

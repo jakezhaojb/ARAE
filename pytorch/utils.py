@@ -2,7 +2,8 @@ import os
 import torch
 import numpy as np
 import random
-
+import shutil
+import json
 
 def load_kenlm():
     global kenlm
@@ -198,3 +199,26 @@ def get_ppl(lm, sentences):
         total_nll += score
     ppl = 10**-(total_nll/total_wc)
     return ppl
+
+
+def create_exp_dir(path, scripts_to_save=None, dict=None, options=None):
+    if not os.path.exists(path):
+        os.mkdir(path)
+
+    print('Experiment dir : {}'.format(path))
+    if scripts_to_save is not None:
+        if not os.path.exists(os.path.join(path, 'scripts')):
+            os.mkdir(os.path.join(path, 'scripts'))
+        for script in scripts_to_save:
+            dst_file = os.path.join(path, 'scripts', os.path.basename(script))
+            shutil.copyfile(script, dst_file)
+
+    # dump the dictionary
+    if dict is not None:
+        with open(os.path.join(path, 'vocab.json'), 'w') as f:
+            json.dump(dict, f)
+
+    # dump the args
+    if options is not None:
+        with open(os.path.join(path, 'options.json'), 'w') as f:
+            json.dump(vars(options), f)
