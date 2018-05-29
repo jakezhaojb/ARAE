@@ -249,14 +249,12 @@ class Seq2Seq(nn.Module):
         for i in range(maxlen):
             output, state = self.decoder(inputs, state)
             overvocab = self.linear(output.squeeze(1))
-
             if not sample:
                 vals, indices = torch.max(overvocab, 1)
             else:
-                # sampling
                 probs = F.softmax(overvocab/temp)
                 indices = torch.multinomial(probs, 1)
-
+            indices = indices.unsqueeze(1)
             all_indices.append(indices)
 
             embedding = self.embedding_decoder(indices)
@@ -267,34 +265,6 @@ class Seq2Seq(nn.Module):
     
     def noise_anneal(self, fac):
         self.noise_r /= fac
-
-
-def load_models(load_path):
-    model_args = json.load(open(os.path.join(load_path, 'options.json'), 'r'))
-    word2idx = json.load(open(os.path.join(load_path, 'vocab.json'), 'r'))
-    idx2word = {v: k for k, v in word2idx.items()}
-
-    autoencoder = Seq2Seq(emsize=model_args['emsize'],
-                          nhidden=model_args['nhidden'],
-                          ntokens=model_args['ntokens'],
-                          nlayers=model_args['nlayers'],
-                          hidden_init=model_args['hidden_init'])
-    gan_gen = MLP_G(ninput=model_args['z_size'],
-                    noutput=model_args['nhidden'],
-                    layers=model_args['arch_g'])
-    gan_disc = MLP_D(ninput=model_args['nhidden'],
-                     noutput=1,
-                     layers=model_args['arch_d'])
-
-    print('Loading models from'+load_path)
-    ae_path = os.path.join(load_path, "autoencoder_model.pt")
-    gen_path = os.path.join(load_path, "gan_gen_model.pt")
-    disc_path = os.path.join(load_path, "gan_disc_model.pt")
-
-    autoencoder.load_state_dict(torch.load(ae_path))
-    gan_gen.load_state_dict(torch.load(gen_path))
-    gan_disc.load_state_dict(torch.load(disc_path))
-    return model_args, idx2word, autoencoder, gan_gen, gan_disc
 
 
 def generate(autoencoder, gan_gen, z, vocab, sample, maxlen):

@@ -7,6 +7,7 @@ import random
 import sys
 import shutil
 import json
+import string
 
 import torch
 import torch.nn as nn
@@ -147,7 +148,7 @@ create_exp_dir(os.path.join(args.save), ['train.py', 'models.py', 'utils.py'],
 
 def logging(str, to_stdout=True):
     with open(os.path.join(args.save, 'log.txt'), 'a') as f:
-        f.write(str + '\n')
+        f.write(str)
     if to_stdout:
         print(str)
 logging(str(vars(args)))
@@ -173,9 +174,9 @@ autoencoder = Seq2Seq(emsize=args.emsize,
 gan_gen = MLP_G(ninput=args.z_size, noutput=args.nhidden, layers=args.arch_g)
 gan_disc = MLP_D(ninput=args.nhidden, noutput=1, layers=args.arch_d)
 
-logging(autoencoder)
-logging(gan_gen)
-logging(gan_disc)
+print(autoencoder)
+print(gan_gen)
+print(gan_disc)
 
 optimizer_ae = optim.SGD(autoencoder.parameters(), lr=args.lr_ae)
 optimizer_gan_g = optim.Adam(gan_gen.parameters(),
@@ -213,6 +214,7 @@ def load_models():
     gan_disc.load_state_dict(loaded.get('gan_d'))
     return model_args, idx2word, autoencoder, gan_gen, gan_disc
 
+#  TODO
 def evaluate_autoencoder(data_source, epoch):
     # Turn on evaluation mode which disables dropout.
     autoencoder.eval()
@@ -244,7 +246,7 @@ def evaluate_autoencoder(data_source, epoch):
             torch.mean(max_indices.eq(masked_target).float()).data[0]
         bcnt += 1
 
-        aeoutf = "./output/%s/%d_autoencoder.txt" % (args.save, epoch)
+        aeoutf = os.path.join(args.save, "autoencoder.txt")
         with open(aeoutf, "a") as f:
             max_values, max_indices = torch.max(output, 2)
             max_indices = \
@@ -253,17 +255,15 @@ def evaluate_autoencoder(data_source, epoch):
             for t, idx in zip(target, max_indices):
                 # real sentence
                 chars = " ".join([corpus.dictionary.idx2word[x] for x in t])
-                f.write(chars)
-                f.write("\n")
+                f.write(chars + '\n')
                 # autoencoder output sentence
                 chars = " ".join([corpus.dictionary.idx2word[x] for x in idx])
-                f.write(chars)
-                f.write("\n\n")
+                f.write(chars + '\n'*2)
 
     return total_loss[0] / len(data_source), all_accuracies/bcnt
 
 
-def evaluate_generator(noise, epoch):
+def evaluate_generator(noise):
     gan_gen.eval()
     autoencoder.eval()
 
@@ -272,7 +272,7 @@ def evaluate_generator(noise, epoch):
     max_indices = \
         autoencoder.generate(fake_hidden, args.maxlen, sample=args.sample)
 
-    with open("./output/%s/%s_generated.txt" % (args.save, epoch), "w") as f:
+    with open(os.path.join(args.save, "generated.txt"), "w") as f:
         max_indices = max_indices.data.cpu().numpy()
         for idx in max_indices:
             # generated sentence
@@ -335,45 +335,31 @@ def train_lm(eval_path, save_path):
     return ppl
 
 
-def train_ae(batch, total_loss_ae, start_time, i):
+def train_ae(epoch, batch, total_loss_ae, start_time, i):
     autoencoder.train()
-    autoencoder.zero_grad()
+    optimizer_ae.zero_grad()
 
     source, target, lengths = batch
-    source = to_gpu(args.cuda, Variable(source))
-    target = to_gpu(args.cuda, Variable(target))
-
-    # Create sentence length mask over padding
-    mask = target.gt(0)
-    masked_target = target.masked_select(mask)
-    # examples x ntokens
-    output_mask = mask.unsqueeze(1).expand(mask.size(0), ntokens)
-
-    # output: batch x seq_len x ntokens
+    source = Variable(source.cuda())
+    target = Variable(target.cuda())
     output = autoencoder(source, lengths, noise=True)
 
-    # output_size: batch_size, maxlen, self.ntokens
-    flattened_output = output.view(-1, ntokens)
-
-    masked_output = \
-        flattened_output.masked_select(output_mask).view(-1, ntokens)
-    loss = F.cross_entropy(masked_output/args.temp, masked_target)
+    mask = target.gt(0)
+    masked_target = target.masked_select(mask)
+    output_mask = mask.unsqueeze(1).expand(mask.size(0), ntokens)
+    flat_output = output.view(-1, ntokens)
+    masked_output = flat_output.masked_select(output_mask).view(-1, ntokens)
+    loss = F.cross_entropy(masked_output / args.temp, masked_target)
     loss.backward()
-
-    # `clip_grad_norm` to prevent exploding gradient in RNNs / LSTMs
     torch.nn.utils.clip_grad_norm(autoencoder.parameters(), args.clip)
     optimizer_ae.step()
 
-    total_loss_ae += loss.data
-
-    accuracy = None
-    if i % args.log_interval == 0 and i > 0:
-        # accuracy
+    total_loss_ae += loss.data[0]
+    if i % args.log_interval == 0:
         probs = F.softmax(masked_output, dim=-1)
         max_vals, max_indices = torch.max(probs, 1)
         accuracy = torch.mean(max_indices.eq(masked_target).float()).data[0]
-
-        cur_loss = total_loss_ae[0] / args.log_interval
+        cur_loss = total_loss_ae / args.log_interval
         elapsed = time.time() - start_time
         logging('| epoch {:3d} | {:5d}/{:5d} batches | ms/batch {:5.2f} | '
                 'loss {:5.2f} | ppl {:8.2f} | acc {:8.2f}'.format(
@@ -382,22 +368,17 @@ def train_ae(batch, total_loss_ae, start_time, i):
                 cur_loss, math.exp(cur_loss), accuracy))
         total_loss_ae = 0
         start_time = time.time()
-
     return total_loss_ae, start_time
 
 
 def train_gan_g():
+    one = torch.Tensor(1).fill_(1).cuda(); mone = one * -1
     gan_gen.train()
-    gan_gen.zero_grad()
+    optimizer_gan_g.zero_grad()
 
-    noise = to_gpu(args.cuda,
-                   Variable(torch.ones(args.batch_size, args.z_size)))
-    noise.data.normal_(0, 1)
-
-    fake_hidden = gan_gen(noise)
+    z = Variable(torch.Tensor(args.batch_size, args.z_size).normal_(0, 1).cuda())
+    fake_hidden = gan_gen(z)
     errG = gan_disc(fake_hidden)
-
-    # loss / backprop
     errG.backward(one)
     optimizer_gan_g.step()
 
@@ -419,37 +400,31 @@ def grad_hook(grad):
 
 
 def train_gan_d(batch):
-    # clamp parameters to a cube
+    one = torch.Tensor(1).fill_(1).cuda(); mone = one * -1
+
+    # clamp parameters to a cube  # TODO use the WGAN-GP
     for p in gan_disc.parameters():
         p.data.clamp_(-args.gan_clamp, args.gan_clamp)
 
     autoencoder.train()
-    autoencoder.zero_grad()
+    optimizer_ae.zero_grad()
     gan_disc.train()
-    gan_disc.zero_grad()
+    optimizer_gan_d.zero_grad()
 
-    # positive samples ----------------------------
-    # generate real codes
+    # + samples
     source, target, lengths = batch
-    source = to_gpu(args.cuda, Variable(source))
-    target = to_gpu(args.cuda, Variable(target))
+    source = Variable(source.cuda())
+    target = Variable(target.cuda())
 
-    # batch_size x nhidden
     real_hidden = autoencoder(source, lengths, noise=False, encode_only=True)
-    real_hidden.register_hook(grad_hook)
+    real_hidden.register_hook(grad_hook)  # TODO
 
-    # loss / backprop
     errD_real = gan_disc(real_hidden)
     errD_real.backward(one)
 
-    # negative samples ----------------------------
-    # generate fake codes
-    noise = to_gpu(args.cuda,
-                   Variable(torch.ones(args.batch_size, args.z_size)))
-    noise.data.normal_(0, 1)
-
-    # loss / backprop
-    fake_hidden = gan_gen(noise)
+    # - samples
+    z = Variable(torch.Tensor(args.batch_size, args.z_size).normal_(0, 1).cuda())
+    fake_hidden = gan_gen(z)
     errD_fake = gan_disc(fake_hidden.detach())
     errD_fake.backward(mone)
 
@@ -462,156 +437,82 @@ def train_gan_d(batch):
 
     return errD, errD_real, errD_fake
 
-
-logging("Training")
-
-# schedule of increasing GAN training loops
-if args.niters_gan_schedule != "":
-    gan_schedule = [int(x) for x in args.niters_gan_schedule.split("-")]
-else:
-    gan_schedule = []
-niter_gan = 1
-
-fixed_noise = to_gpu(args.cuda,
-                     Variable(torch.ones(args.batch_size, args.z_size)))
-fixed_noise.data.normal_(0, 1)
-one = to_gpu(args.cuda, torch.FloatTensor([1]))
-mone = one * -1
-
-best_ppl = None
-impatience = 0
-all_ppl = []
-for epoch in range(1, args.epochs+1):
-    # update gan training schedule
-    if epoch in gan_schedule:
-        niter_gan += 1
-        print("GAN training loop schedule increased to {}".format(niter_gan))
-        with open("./output/{}/logs.txt".format(args.save), 'a') as f:
-            f.write("GAN training loop schedule increased to {}\n".
-                    format(niter_gan))
-
-    total_loss_ae = 0
-    epoch_start_time = time.time()
-    start_time = time.time()
-    niter = 0
-    niter_global = 1
-
-    # loop through all batches in training data
-    while niter < len(train_data):
-
-        # train autoencoder ----------------------------
-        for i in range(args.niters_ae):
-            if niter == len(train_data):
-                break  # end of epoch
-            total_loss_ae, start_time = \
-                train_ae(train_data[niter], total_loss_ae, start_time, niter)
-            niter += 1
-
-        # train gan ----------------------------------
-        for k in range(niter_gan):
-
-            # train discriminator/critic
-            for i in range(args.niters_gan_d):
-                # feed a seen sample within this epoch; good for early training
-                errD, errD_real, errD_fake = \
-                    train_gan_d(train_data[random.randint(0, len(train_data)-1)])
-
-            # train generator
-            for i in range(args.niters_gan_g):
-                errG = train_gan_g()
-
-        niter_global += 1
-        if niter_global % 100 == 0:
-            logging('[%d/%d][%d/%d] Loss_D: %.8f (Loss_D_real: %.8f '
-                        'Loss_D_fake: %.8f) Loss_G: %.8f\n'
-                        % (epoch, args.epochs, niter, len(train_data),
-                           errD.data[0], errD_real.data[0],
-                           errD_fake.data[0], errG.data[0]))
-            # schedule noise
-            autoencoder.noise_anneal(args.noise_anneal)
-
-            if niter_global % 3000 == 0:  # TODO what a mess
-                evaluate_generator(fixed_noise, "epoch{}_step{}".
-                                   format(epoch, niter_global))
-
-                # evaluate with lm
-                if not args.no_earlystopping and epoch > args.min_epochs:
-                    ppl = train_lm(eval_path=os.path.join(args.data_path,
-                                                          "test.txt"),
-                                   save_path="output/{}/"
-                                             "epoch{}_step{}_lm_generations".
-                                             format(args.save, epoch,
-                                                    niter_global))
-                    print("Perplexity {}".format(ppl))
-                    all_ppl.append(ppl)
-                    print(all_ppl)
-                    with open("./output/{}/logs.txt".
-                              format(args.save), 'a') as f:
-                        f.write("\n\nPerplexity {}\n".format(ppl))
-                        f.write(str(all_ppl)+"\n\n")
-                    if best_ppl is None or ppl < best_ppl:
-                        impatience = 0
-                        best_ppl = ppl
-                        print("New best ppl {}\n".format(best_ppl))
-                        with open("./output/{}/logs.txt".
-                                  format(args.save), 'a') as f:
-                            f.write("New best ppl {}\n".format(best_ppl))
-                        save_model()
-                    else:
-                        impatience += 1
-                        # end training
-                        if impatience > args.patience:
-                            print("Ending training")
-                            with open("./output/{}/logs.txt".
-                                      format(args.save), 'a') as f:
-                                f.write("\nEnding Training\n")
-                            sys.exit()
-
-    # end of epoch ----------------------------
-    # evaluation
-    test_loss, accuracy = evaluate_autoencoder(test_data, epoch)
-    print('-' * 89)
-    print('| end of epoch {:3d} | time: {:5.2f}s | test loss {:5.2f} | '
-          'test ppl {:5.2f} | acc {:3.3f}'.
-          format(epoch, (time.time() - epoch_start_time),
-                 test_loss, math.exp(test_loss), accuracy))
-    print('-' * 89)
-
-    with open("./output/{}/logs.txt".format(args.save), 'a') as f:
-        f.write('-' * 89)
-        f.write('\n| end of epoch {:3d} | time: {:5.2f}s | test loss {:5.2f} |'
-                ' test ppl {:5.2f} | acc {:3.3f}\n'.
-                format(epoch, (time.time() - epoch_start_time),
-                       test_loss, math.exp(test_loss), accuracy))
-        f.write('-' * 89)
-        f.write('\n')
-
-    evaluate_generator(fixed_noise, "end_of_epoch_{}".format(epoch))
-    if not args.no_earlystopping and epoch >= args.min_epochs:
-        ppl = train_lm(eval_path=os.path.join(args.data_path, "test.txt"),
-                       save_path="./output/{}/end_of_epoch{}_lm_generations".
-                                 format(args.save, epoch))
-        print("Perplexity {}".format(ppl))
-        all_ppl.append(ppl)
-        print(all_ppl)
-        with open("./output/{}/logs.txt".format(args.save), 'a') as f:
-            f.write("\n\nPerplexity {}\n".format(ppl))
-            f.write(str(all_ppl)+"\n\n")
-        if best_ppl is None or ppl < best_ppl:
-            impatience = 0
-            best_ppl = ppl
-            print("New best ppl {}\n".format(best_ppl))
-            with open("./output/{}/logs.txt".format(args.save), 'a') as f:
-                f.write("New best ppl {}\n".format(best_ppl))
-            save_model()
-        else:
-            impatience += 1
-            # end training
-            if impatience > args.patience:
-                print("Ending training")
-                with open("./output/{}/logs.txt".format(args.save), 'a') as f:
-                    f.write("\nEnding Training\n")
-                sys.exit()
-
-    # shuffle between epochs
+def train():
+    logging("Training")
     train_data = batchify(corpus.train, args.batch_size, shuffle=True)
+
+    # gan: preparation
+    if args.niters_gan_schedule != "":
+        gan_schedule = [int(x) for x in args.niters_gan_schedule.split("-")]
+    else:
+        gan_schedule = []
+    niter_gan = 1
+    fixed_noise = Variable(torch.ones(args.batch_size, args.z_size).normal_(0, 1).cuda())
+
+    best_ppl = None
+    impatience = 0
+    for epoch in range(1, args.epochs+1):
+        # update gan training schedule
+        if epoch in gan_schedule:
+            niter_gan += 1
+            logging("GAN training loop schedule: {}".format(niter_gan))
+
+        total_loss_ae = 0
+        epoch_start_time = time.time()
+        start_time = time.time()
+        niter = 0
+        niter_g = 1
+
+        while niter < len(train_data):
+            # train ae
+            for i in range(args.niters_ae):
+                if niter >= len(train_data):
+                    break  # end of epoch
+                total_loss_ae, start_time = train_ae(epoch, train_data[niter],
+                                total_loss_ae, start_time, niter)
+                niter += 1
+
+            # train gan
+            for k in range(niter_gan):
+                for i in range(args.niters_gan_d):
+                    errD, errD_real, errD_fake = train_gan_d(
+                            train_data[random.randint(0, len(train_data)-1)])
+                for i in range(args.niters_gan_g):
+                    errG = train_gan_g()
+
+            niter_g += 1
+            if niter_g % 100 == 0:
+                autoencoder.noise_anneal(args.noise_anneal)
+                logging('[{}/{}][{}/{}] Loss_D: {:.8f} (Loss_D_real: {:.8f} '
+                        'Loss_D_fake: {:.8f}) Loss_G: {:.8f}'.format(
+                         epoch, args.epochs, niter, len(train_data),
+                         errD.data[0], errD_real.data[0],
+                         errD_fake.data[0], errG.data[0]))
+
+        # evals
+        test_loss, accuracy = evaluate_autoencoder(test_data, epoch)
+        logging('| end of epoch {:3d} | time: {:5.2f}s | test loss {:5.2f} | '
+                'test ppl {:5.2f} | acc {:3.3f}'.format(epoch,
+                (time.time() - epoch_start_time), test_loss,
+                math.exp(test_loss), accuracy))
+        evaluate_generator(fixed_noise)
+
+        if not args.no_earlystopping and epoch >= args.min_epochs:
+            this_save_path = ''.join(random.choice(
+                string.ascii_uppercase + string.digits) for _ in range(6))
+            ppl = train_lm(eval_path=os.path.join(args.data_path, "test.txt"),
+                           save_path=this_save_path)
+            logging("Perplexity {}".format(ppl))
+            if best_ppl is None or ppl < best_ppl:
+                impatience = 0
+                best_ppl = ppl
+                logging("New saving model.")
+                save_model()
+            else:
+                impatience += 1
+                # end training
+                if impatience > args.patience:
+                    logging("Ending training")
+                    sys.exit()
+
+train()
