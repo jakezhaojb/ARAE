@@ -94,14 +94,16 @@ parser.add_argument('--lr_gan_g', type=float, default=5e-05,
                     help='generator learning rate')
 parser.add_argument('--lr_gan_d', type=float, default=1e-05,
                     help='critic/discriminator learning rate')
-parser.add_argument('--beta1', type=float, default=0.9,
-                    help='beta1 for adam. default=0.9')
+parser.add_argument('--beta1', type=float, default=0.5,
+                    help='beta1 for adam. default=0.5')
 parser.add_argument('--clip', type=float, default=1,
                     help='gradient clipping, max norm')
 parser.add_argument('--gan_clamp', type=float, default=0.01,
                     help='WGAN clamp')
-parser.add_argument('--gan_gp_lambda', type=float, default=100,
+parser.add_argument('--gan_gp_lambda', type=float, default=10,
                     help='WGAN GP penalty lambda')
+parser.add_argument('--grad_lambda', type=float, default=1,
+                    help='WGAN into AE lambda')
 
 # Evaluation Arguments
 parser.add_argument('--sample', action='store_true',
@@ -395,9 +397,9 @@ def train_gan_g():
 
 
 def grad_hook(grad):
-    gan_norm = torch.norm(grad, p=2, dim=1).detach().data.mean()
+    #gan_norm = torch.norm(grad, p=2, dim=1).detach().data.mean()
     #print(gan_norm, autoencoder.grad_norm)
-    return grad
+    return grad * args.grad_lambda
     '''
     if args.enc_grad_norm:
         gan_norm = torch.norm(grad, 2, 1).detach().data.mean()
@@ -472,6 +474,7 @@ def train_gan_d_into_ae(batch):
     source = Variable(source.cuda())
     target = Variable(target.cuda())
     real_hidden = autoencoder(source, lengths, noise=False, encode_only=True)
+    real_hidden.register_hook(grad_hook)
     errD_real = gan_disc(real_hidden)
     errD_real.backward(one)
     torch.nn.utils.clip_grad_norm(autoencoder.parameters(), args.clip)
