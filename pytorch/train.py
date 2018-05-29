@@ -31,8 +31,6 @@ parser.add_argument('--save', type=str, default='example',
 parser.add_argument('--vocab_size', type=int, default=11000,
                     help='cut vocabulary down to this size '
                          '(most frequently seen words in train)')
-parser.add_argument('--maxlen', type=int, default=30,
-                    help='maximum sentence length')
 parser.add_argument('--lowercase', action='store_true',
                     help='lowercase all text')
 
@@ -136,7 +134,14 @@ if torch.cuda.is_available():
 ###############################################################################
 # Load data
 ###############################################################################
-# create corpus
+# create corpus  # TODO to be deleted
+if args.data_path.find("snli") != -1:
+    args.maxlen = 15
+    args.vocab_size = 11000
+    args.lowercase = True
+elif args.data_path.find("1Bword") != -1:
+    args.maxlen = 25
+    args.vocab_size = 30000
 corpus = Corpus(args.data_path,
                 maxlen=args.maxlen,
                 vocab_size=args.vocab_size,
@@ -335,6 +340,7 @@ def train_lm(data_path):
     except:
         print("reverse ppl error: it maybe the generated files aren't valid to obtain an LM")
         rev_ppl = 1e15
+    '''
     # forward ppl
     for_lm = train_ngram_lm(kenlm_path=args.kenlm_path,
                         data_path=os.path.join(args.data_path, 'train.txt'),
@@ -344,6 +350,8 @@ def train_lm(data_path):
         lines = f.readlines()
     sentences = [l.replace('\n', '') for l in lines]
     for_ppl = get_ppl(for_lm, sentences)
+    '''
+    for_ppl = 0
     return rev_ppl, for_ppl
 
 
