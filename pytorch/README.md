@@ -151,7 +151,7 @@ If you would like to train a text ARAE on another dataset, simply
 - Need Boost >= 1.42.0 and bjam
     - Ubuntu: `sudo apt-get install libboost-all-dev`
     - Mac: `brew install boost; brew install bjam`
-- Run within kenlm directory:
+- Run *within* kenlm directory:
     ```bash
     mkdir -p build
     cd build

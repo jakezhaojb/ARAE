@@ -22,7 +22,7 @@ parser = argparse.ArgumentParser(description='PyTorch ARAE for Text')
 # Path Arguments
 parser.add_argument('--data_path', type=str, required=True,
                     help='location of the data corpus')
-parser.add_argument('--kenlm_path', type=str, default='../Data/kenlm',
+parser.add_argument('--kenlm_path', type=str, default='./kenlm',
                     help='path to kenlm directory')
 parser.add_argument('--save', type=str, default='example',
                     help='output directory name')
@@ -148,11 +148,10 @@ create_exp_dir(os.path.join(args.save), ['train.py', 'models.py', 'utils.py'],
 
 def logging(str, to_stdout=True):
     with open(os.path.join(args.save, 'log.txt'), 'a') as f:
-        f.write(str)
+        f.write(str + '\n')
     if to_stdout:
         print(str)
 logging(str(vars(args)))
-logging('\n')
 
 eval_batch_size = 10
 test_data = batchify(corpus.test, eval_batch_size, shuffle=False)
@@ -263,16 +262,14 @@ def evaluate_autoencoder(data_source, epoch):
     return total_loss[0] / len(data_source), all_accuracies/bcnt
 
 
-def evaluate_generator(noise):
+def gen_fixed_noise(noise, to_save):
     gan_gen.eval()
     autoencoder.eval()
 
-    # generate from fixed random noise
     fake_hidden = gan_gen(noise)
-    max_indices = \
-        autoencoder.generate(fake_hidden, args.maxlen, sample=args.sample)
+    max_indices = autoencoder.generate(fake_hidden, args.maxlen, sample=args.sample)
 
-    with open(os.path.join(args.save, "generated.txt"), "w") as f:
+    with open(to_save, "w") as f:
         max_indices = max_indices.data.cpu().numpy()
         for idx in max_indices:
             # generated sentence
@@ -285,30 +282,27 @@ def evaluate_generator(noise):
                 else:
                     break
             chars = " ".join(truncated_sent)
-            f.write(chars)
-            f.write("\n")
+            f.write(chars + '\n')
 
 
-def train_lm(eval_path, save_path):
-    # generate examples
+def train_lm(data_path):
+    save_path = os.path.join("/tmp", ''.join(random.choice(
+            string.ascii_uppercase + string.digits) for _ in range(6)))
+
     indices = []
     noise = to_gpu(args.cuda, Variable(torch.ones(100, args.z_size)))
     for i in range(1000):
         noise.data.normal_(0, 1)
-
         fake_hidden = gan_gen(noise)
-        max_indices = autoencoder.generate(fake_hidden, args.maxlen)
+        max_indices = autoencoder.generate(fake_hidden, args.maxlen, sample=args.sample)
         indices.append(max_indices.data.cpu().numpy())
-
     indices = np.concatenate(indices, axis=0)
 
-    # write generated sentences to text file
-    with open(save_path+".txt", "w") as f:
+    with open(save_path, "w") as f:
         # laplacian smoothing
         for word in corpus.dictionary.word2idx.keys():
-            f.write(word+"\n")
+            f.write(word+'\n')
         for idx in indices:
-            # generated sentence
             words = [corpus.dictionary.idx2word[x] for x in idx]
             # truncate sentences to first occurrence of <eos>
             truncated_sent = []
@@ -318,21 +312,31 @@ def train_lm(eval_path, save_path):
                 else:
                     break
             chars = " ".join(truncated_sent)
-            f.write(chars+"\n")
-
-    # train language model on generated examples
-    lm = train_ngram_lm(kenlm_path=args.kenlm_path,
-                        data_path=save_path+".txt",
+            f.write(chars+'\n')
+    # reverse ppl
+    try:
+        rev_lm = train_ngram_lm(kenlm_path=args.kenlm_path,
+                            data_path=save_path,
+                            output_path=save_path+".arpa",
+                            N=args.N)
+        with open(os.path.join(args.data_path, 'test.txt'), 'r') as f:
+            lines = f.readlines()
+        sentences = [l.replace('\n', '') for l in lines]
+        rev_ppl = get_ppl(rev_lm, sentences)
+    except:
+        print("reverse ppl error: it maybe the generated files aren't valid to obtain an LM")
+        rev_ppl = 1e15
+    # forward ppl  TODO
+    for_lm = train_ngram_lm(kenlm_path=args.kenlm_path,
+                        data_path=os.path.join(args.data_path, 'train.txt'),
                         output_path=save_path+".arpa",
                         N=args.N)
-
-    # load sentences to evaluate on
-    with open(eval_path, 'r') as f:
+    with open(save_path, 'r') as f:
         lines = f.readlines()
     sentences = [l.replace('\n', '') for l in lines]
-    ppl = get_ppl(lm, sentences)
-
-    return ppl
+    for_ppl = get_ppl(for_lm, sentences)
+    for_ppl = 0
+    return rev_ppl, for_ppl
 
 
 def train_ae(epoch, batch, total_loss_ae, start_time, i):
@@ -449,7 +453,7 @@ def train():
     niter_gan = 1
     fixed_noise = Variable(torch.ones(args.batch_size, args.z_size).normal_(0, 1).cuda())
 
-    best_ppl = None
+    best_rev_ppl = None
     impatience = 0
     for epoch in range(1, args.epochs+1):
         # update gan training schedule
@@ -488,29 +492,27 @@ def train():
                          epoch, args.epochs, niter, len(train_data),
                          errD.data[0], errD_real.data[0],
                          errD_fake.data[0], errG.data[0]))
-
-        # evals
+        # eval
         test_loss, accuracy = evaluate_autoencoder(test_data, epoch)
         logging('| end of epoch {:3d} | time: {:5.2f}s | test loss {:5.2f} | '
                 'test ppl {:5.2f} | acc {:3.3f}'.format(epoch,
                 (time.time() - epoch_start_time), test_loss,
                 math.exp(test_loss), accuracy))
-        evaluate_generator(fixed_noise)
+        gen_fixed_noise(fixed_noise, os.path.join(args.save,
+                "{:03d}_examplar_gen".format(epoch)))
 
-        if not args.no_earlystopping and epoch >= args.min_epochs:
-            this_save_path = ''.join(random.choice(
-                string.ascii_uppercase + string.digits) for _ in range(6))
-            ppl = train_lm(eval_path=os.path.join(args.data_path, "test.txt"),
-                           save_path=this_save_path)
-            logging("Perplexity {}".format(ppl))
-            if best_ppl is None or ppl < best_ppl:
-                impatience = 0
-                best_ppl = ppl
-                logging("New saving model.")
-                save_model()
-            else:
+        # eval with rev_ppl and for_ppl
+        rev_ppl, for_ppl = train_lm(args.data_path)
+        logging("Epoch {:03d}, Reverse perplexity {}".format(epoch, rev_ppl))
+        logging("Epoch {:03d}, Forward perplexity {}".format(epoch, for_ppl))
+        if best_rev_ppl is None or rev_ppl < best_rev_ppl:
+            impatience = 0
+            best_rev_ppl = rev_ppl
+            logging("New saving model: epoch {:03d}.".format(epoch))
+            save_model()
+        else:
+            if not args.no_earlystopping and epoch >= args.min_epochs:
                 impatience += 1
-                # end training
                 if impatience > args.patience:
                     logging("Ending training")
                     sys.exit()
