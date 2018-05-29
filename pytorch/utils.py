@@ -204,6 +204,9 @@ def get_ppl(lm, sentences):
 def create_exp_dir(path, scripts_to_save=None, dict=None, options=None):
     if not os.path.exists(path):
         os.mkdir(path)
+    else:
+        shutil.rmtree(path)
+        os.mkdir(path)
 
     print('Experiment dir : {}'.format(path))
     if scripts_to_save is not None:

@@ -83,7 +83,9 @@ parser.add_argument('--niters_gan_d', type=int, default=5,
                     help='number of discriminator iterations in training')
 parser.add_argument('--niters_gan_g', type=int, default=1,
                     help='number of generator iterations in training')
-parser.add_argument('--niters_gan_schedule', type=str, default='2-4-6',
+parser.add_argument('--niters_gan_ae', type=int, default=5,
+                    help='number of gan-into-ae iterations in training')
+parser.add_argument('--niters_gan_schedule', type=str, default='',   # TODO
                     help='epoch counts to increase number of GAN training '
                          ' iterations (increment by 1 each time)')
 parser.add_argument('--lr_ae', type=float, default=1,
@@ -98,6 +100,8 @@ parser.add_argument('--clip', type=float, default=1,
                     help='gradient clipping, max norm')
 parser.add_argument('--gan_clamp', type=float, default=0.01,
                     help='WGAN clamp')
+parser.add_argument('--gan_gp_lambda', type=float, default=100,
+                    help='WGAN GP penalty lambda')
 
 # Evaluation Arguments
 parser.add_argument('--sample', action='store_true',
@@ -117,7 +121,7 @@ args = parser.parse_args()
 print(vars(args))
 
 # Set the random seed manually for reproducibility.
-random.seed(args.seed)  # TODO check the rnadom seed
+random.seed(args.seed) 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 if torch.cuda.is_available():
@@ -184,10 +188,13 @@ optimizer_gan_g = optim.Adam(gan_gen.parameters(),
 optimizer_gan_d = optim.Adam(gan_disc.parameters(),
                              lr=args.lr_gan_d,
                              betas=(args.beta1, 0.999))
-if args.cuda:  # TODO handle cuda
-    autoencoder = autoencoder.cuda()
-    gan_gen = gan_gen.cuda()
-    gan_disc = gan_disc.cuda()
+autoencoder = autoencoder.cuda()
+gan_gen = gan_gen.cuda()
+gan_disc = gan_disc.cuda()
+
+# global vars
+one = torch.Tensor(1).fill_(1).cuda()
+mone = one * -1
 
 ###############################################################################
 # Training code
@@ -326,7 +333,7 @@ def train_lm(data_path):
     except:
         print("reverse ppl error: it maybe the generated files aren't valid to obtain an LM")
         rev_ppl = 1e15
-    # forward ppl  TODO
+    # forward ppl
     for_lm = train_ngram_lm(kenlm_path=args.kenlm_path,
                         data_path=os.path.join(args.data_path, 'train.txt'),
                         output_path=save_path+".arpa",
@@ -335,7 +342,6 @@ def train_lm(data_path):
         lines = f.readlines()
     sentences = [l.replace('\n', '') for l in lines]
     for_ppl = get_ppl(for_lm, sentences)
-    for_ppl = 0
     return rev_ppl, for_ppl
 
 
@@ -376,7 +382,6 @@ def train_ae(epoch, batch, total_loss_ae, start_time, i):
 
 
 def train_gan_g():
-    one = torch.Tensor(1).fill_(1).cuda(); mone = one * -1
     gan_gen.train()
     optimizer_gan_g.zero_grad()
 
@@ -390,8 +395,10 @@ def train_gan_g():
 
 
 def grad_hook(grad):
-    # Gradient norm: regularize to be same
-    # code_grad_gan * code_grad_ae / norm(code_grad_gan)
+    gan_norm = torch.norm(grad, p=2, dim=1).detach().data.mean()
+    #print(gan_norm, autoencoder.grad_norm)
+    return grad
+    '''
     if args.enc_grad_norm:
         gan_norm = torch.norm(grad, 2, 1).detach().data.mean()
         normed_grad = grad * autoencoder.grad_norm / gan_norm
@@ -401,17 +408,33 @@ def grad_hook(grad):
     # weight factor and sign flip
     normed_grad *= -math.fabs(args.gan_toenc)
     return normed_grad
+    '''
+
+
+''' Steal from https://github.com/caogang/wgan-gp/blob/master/gan_cifar10.py '''
+def calc_gradient_penalty(netD, real_data, fake_data):
+    bsz = real_data.size(0)
+    alpha = torch.rand(bsz, 1)
+    alpha = alpha.expand(bsz, real_data.size(1))  # only works for 2D XXX
+    alpha = alpha.cuda()
+    interpolates = alpha * real_data + ((1 - alpha) * fake_data)
+    interpolates = Variable(interpolates, requires_grad=True)
+    disc_interpolates = netD(interpolates)
+
+    gradients = torch.autograd.grad(outputs=disc_interpolates, inputs=interpolates,
+                                    grad_outputs=torch.ones(disc_interpolates.size()).cuda(),
+                                    create_graph=True, retain_graph=True, only_inputs=True)[0]
+    gradients = gradients.view(gradients.size(0), -1)
+
+    gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean() * args.gan_gp_lambda
+    return gradient_penalty
 
 
 def train_gan_d(batch):
-    one = torch.Tensor(1).fill_(1).cuda(); mone = one * -1
+   # # clamp parameters to a cube  # TODO use the WGAN-GP
+   # for p in gan_disc.parameters():
+   #     p.data.clamp_(-args.gan_clamp, args.gan_clamp)
 
-    # clamp parameters to a cube  # TODO use the WGAN-GP
-    for p in gan_disc.parameters():
-        p.data.clamp_(-args.gan_clamp, args.gan_clamp)
-
-    autoencoder.train()
-    optimizer_ae.zero_grad()
     gan_disc.train()
     optimizer_gan_d.zero_grad()
 
@@ -419,11 +442,8 @@ def train_gan_d(batch):
     source, target, lengths = batch
     source = Variable(source.cuda())
     target = Variable(target.cuda())
-
     real_hidden = autoencoder(source, lengths, noise=False, encode_only=True)
-    real_hidden.register_hook(grad_hook)  # TODO
-
-    errD_real = gan_disc(real_hidden)
+    errD_real = gan_disc(real_hidden.detach())
     errD_real.backward(one)
 
     # - samples
@@ -432,14 +452,33 @@ def train_gan_d(batch):
     errD_fake = gan_disc(fake_hidden.detach())
     errD_fake.backward(mone)
 
-    # `clip_grad_norm` to prvent exploding gradient problem in RNNs / LSTMs
-    torch.nn.utils.clip_grad_norm(autoencoder.parameters(), args.clip)
+    # gradient penalty
+    gradient_penalty = calc_gradient_penalty(gan_disc, real_hidden.data, fake_hidden.data)
+    gradient_penalty.backward()
 
     optimizer_gan_d.step()
-    optimizer_ae.step()
-    errD = -(errD_real - errD_fake)
+    return -(errD_real - errD_fake), errD_real, errD_fake
 
-    return errD, errD_real, errD_fake
+
+def train_gan_d_into_ae(batch):
+   # # clamp parameters to a cube
+   # for p in gan_disc.parameters():
+   #     p.data.clamp_(-args.gan_clamp, args.gan_clamp)
+
+    autoencoder.train()
+    optimizer_ae.zero_grad()
+
+    source, target, lengths = batch
+    source = Variable(source.cuda())
+    target = Variable(target.cuda())
+    real_hidden = autoencoder(source, lengths, noise=False, encode_only=True)
+    errD_real = gan_disc(real_hidden)
+    errD_real.backward(one)
+    torch.nn.utils.clip_grad_norm(autoencoder.parameters(), args.clip)
+
+    optimizer_ae.step()
+    return errD_real
+
 
 def train():
     logging("Training")
@@ -475,12 +514,13 @@ def train():
                 total_loss_ae, start_time = train_ae(epoch, train_data[niter],
                                 total_loss_ae, start_time, niter)
                 niter += 1
-
             # train gan
             for k in range(niter_gan):
                 for i in range(args.niters_gan_d):
                     errD, errD_real, errD_fake = train_gan_d(
                             train_data[random.randint(0, len(train_data)-1)])
+                for i in range(args.niters_gan_ae):
+                    train_gan_d_into_ae(train_data[random.randint(0, len(train_data)-1)])
                 for i in range(args.niters_gan_g):
                     errG = train_gan_g()
 
