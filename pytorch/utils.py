@@ -180,6 +180,7 @@ def train_ngram_lm(kenlm_path, data_path, output_path, N):
 
     load_kenlm()
     # create language model
+    assert(output_path)  # captured by try..except block outside
     model = kenlm.Model(output_path)
 
     return model

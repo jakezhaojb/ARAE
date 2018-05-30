@@ -264,7 +264,7 @@ class Seq2Seq(nn.Module):
         return max_indices
     
     def noise_anneal(self, fac):
-        self.noise_r /= fac
+        self.noise_r *= fac
 
 
 def generate(autoencoder, gan_gen, z, vocab, sample, maxlen):
