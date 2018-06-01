@@ -155,12 +155,12 @@ class Seq2Seq(nn.Module):
         self.linear.bias.data.fill_(0)
 
     def init_hidden(self, bsz):
-        zeros1 = Variable(torch.zeros(self.nlayers, bsz, self.nhidden))
-        zeros2 = Variable(torch.zeros(self.nlayers, bsz, self.nhidden))
+        zeros1 = Variable(torch.zeros(1, bsz, self.nhidden))
+        zeros2 = Variable(torch.zeros(1, bsz, self.nhidden))
         return (to_gpu(self.gpu, zeros1), to_gpu(self.gpu, zeros2))
 
     def init_state(self, bsz):
-        zeros = Variable(torch.zeros(self.nlayers, bsz, self.nhidden))
+        zeros = Variable(torch.zeros(1, bsz, self.nhidden))
         return to_gpu(self.gpu, zeros)
 
     def store_grad_norm(self, grad):

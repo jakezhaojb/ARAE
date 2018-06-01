@@ -58,8 +58,6 @@ parser.add_argument('--temp', type=float, default=1,
                     help='softmax temperature (lower --> more discrete)')
 parser.add_argument('--enc_grad_norm', type=bool, default=True,
                     help='norm code gradient from critic->encoder')
-parser.add_argument('--gan_toenc', type=float, default=-0.01,
-                    help='weight factor passing gradient from gan to encoder')
 parser.add_argument('--dropout', type=float, default=0.0,
                     help='dropout applied to layers (0 = no dropout)')
 
@@ -90,7 +88,7 @@ parser.add_argument('--lr_ae', type=float, default=1,
                     help='autoencoder learning rate')
 parser.add_argument('--lr_gan_g', type=float, default=5e-05,
                     help='generator learning rate')
-parser.add_argument('--lr_gan_d', type=float, default=1e-05,
+parser.add_argument('--lr_gan_d', type=float, default=5e-05,
                     help='critic/discriminator learning rate')
 parser.add_argument('--beta1', type=float, default=0.5,
                     help='beta1 for adam. default=0.5')
@@ -408,17 +406,6 @@ def grad_hook(grad):
     #gan_norm = torch.norm(grad, p=2, dim=1).detach().data.mean()
     #print(gan_norm, autoencoder.grad_norm)
     return grad * args.grad_lambda
-    '''
-    if args.enc_grad_norm:
-        gan_norm = torch.norm(grad, 2, 1).detach().data.mean()
-        normed_grad = grad * autoencoder.grad_norm / gan_norm
-    else:
-        normed_grad = grad
-
-    # weight factor and sign flip
-    normed_grad *= -math.fabs(args.gan_toenc)
-    return normed_grad
-    '''
 
 
 ''' Steal from https://github.com/caogang/wgan-gp/blob/master/gan_cifar10.py '''
@@ -553,6 +540,7 @@ def train():
                 "{:03d}_examplar_gen".format(epoch)))
 
         # eval with rev_ppl and for_ppl
+        '''
         rev_ppl, for_ppl = train_lm(args.data_path)
         logging("Epoch {:03d}, Reverse perplexity {}".format(epoch, rev_ppl))
         logging("Epoch {:03d}, Forward perplexity {}".format(epoch, for_ppl))
@@ -567,5 +555,6 @@ def train():
                 if impatience > args.patience:
                     logging("Ending training")
                     sys.exit()
+        '''
 
 train()
