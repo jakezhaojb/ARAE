@@ -86,9 +86,9 @@ parser.add_argument('--niters_gan_schedule', type=str, default='',   # TODO
                          ' iterations (increment by 1 each time)')
 parser.add_argument('--lr_ae', type=float, default=1,
                     help='autoencoder learning rate')
-parser.add_argument('--lr_gan_g', type=float, default=5e-05,
+parser.add_argument('--lr_gan_g', type=float, default=1e-04,
                     help='generator learning rate')
-parser.add_argument('--lr_gan_d', type=float, default=5e-05,
+parser.add_argument('--lr_gan_d', type=float, default=1e-04,
                     help='critic/discriminator learning rate')
 parser.add_argument('--beta1', type=float, default=0.5,
                     help='beta1 for adam. default=0.5')
@@ -471,7 +471,7 @@ def train_gan_d_into_ae(batch):
     real_hidden = autoencoder(source, lengths, noise=False, encode_only=True)
     real_hidden.register_hook(grad_hook)
     errD_real = gan_disc(real_hidden)
-    errD_real.backward(one)
+    errD_real.backward(mone)
     torch.nn.utils.clip_grad_norm(autoencoder.parameters(), args.clip)
 
     optimizer_ae.step()
