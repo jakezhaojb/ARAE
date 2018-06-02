@@ -21,7 +21,7 @@ parser = argparse.ArgumentParser(description='PyTorch ARAE for Yelp transfer')
 # Path Arguments
 parser.add_argument('--data_path', type=str, required=True,
                     help='location of the data corpus')
-parser.add_argument('--outf', type=str, default='example',
+parser.add_argument('--save', type=str, default='example',
                     help='output directory name')
 parser.add_argument('--load_vocab', type=str, default="",
                     help='path to load vocabulary from')
@@ -75,7 +75,7 @@ parser.add_argument('--niters_gan_d', type=int, default=10,
                     help='number of discriminator iterations in training')
 parser.add_argument('--niters_gan_g', type=int, default=1,
                     help='number of generator iterations in training')
-parser.add_argument('--niters_gan_ae', type=int, default=10,
+parser.add_argument('--niters_gan_ae', type=int, default=2,
                     help='number of autoencoder from discriminator iterations')
 parser.add_argument('--niters_gan_schedule', type=str, default='',
                     help='epoch counts to increase number of GAN training '
@@ -94,6 +94,10 @@ parser.add_argument('--clip', type=float, default=1,
                     help='gradient clipping, max norm')
 parser.add_argument('--gan_clamp', type=float, default=0.01,
                     help='WGAN clamp')
+parser.add_argument('--gan_gp_lambda', type=float, default=10,
+                    help='WGAN GP penalty lambda')
+parser.add_argument('--grad_lambda', type=float, default=0.1,
+                    help='WGAN into AE lambda')
 parser.add_argument('--lambda_class', type=float, default=1,
                     help='lambda on classifier')
 
@@ -265,10 +269,8 @@ def train_classifier(whichclass, batch):
     return classify_loss, accuracy
 
 
-def grad_hook(grad):
-    global g_factor
-    newgrad = grad * Variable(g_factor.cuda())
-    return newgrad
+def grad_hook_cla(grad):
+    return grad * args.lambda_class
 
 
 def classifier_regularize(whichclass, batch):
@@ -283,8 +285,7 @@ def classifier_regularize(whichclass, batch):
 
     # Train
     code = autoencoder(0, source, lengths, noise=False, encode_only=True)
-    global g_factor; g_factor = torch.from_numpy(np.array(lengths)).mul_(args.lambda_class).float().unsqueeze(-1)
-    code.register_hook(grad_hook)
+    code.register_hook(grad_hook_cla)
     scores = classifier(code)
     classify_reg_loss = F.binary_cross_entropy(scores.squeeze(1), labels)
     classify_reg_loss.backward()
@@ -359,32 +360,51 @@ def evaluate_autoencoder(whichdecoder, data_source, epoch):
                 # transfer sentence
                 chars = " ".join([corpus.dictionary.idx2word[x] for x in idx2])
                 f_trans.write(chars)
-                f_trans.write("\n\n")
+                f_trans.write("\n")
 
     return total_loss[0] / len(data_source), all_accuracies/bcnt
 
+
+def evaluate_generator(whichdecoder, noise, epoch):
+    gan_gen.eval()
+    autoencoder.eval()
+
+    # generate from fixed random noise
+    fake_hidden = gan_gen(noise)
+    max_indices = \
+        autoencoder.generate(whichdecoder, fake_hidden, maxlen=50, sample=args.sample)
+
+    with open("%s/%s_generated%d.txt" % (args.outf, epoch, whichdecoder), "w") as f:
+        max_indices = max_indices.data.cpu().numpy()
+        for idx in max_indices:
+            # generated sentence
+            words = [corpus.dictionary.idx2word[x] for x in idx]
+            # truncate sentences to first occurrence of <eos>
+            truncated_sent = []
+            for w in words:
+                if w != '<eos>':
+                    truncated_sent.append(w)
+                else:
+                    break
+            chars = " ".join(truncated_sent)
+            f.write(chars)
+            f.write("\n")
+
+
 def train_ae(whichdecoder, batch, total_loss_ae, start_time, i):
     autoencoder.train()
-    autoencoder.zero_grad()
+    optimizer_ae.zero_grad()
 
     source, target, lengths = batch
     source = to_gpu(args.cuda, Variable(source))
     target = to_gpu(args.cuda, Variable(target))
 
-    # Create sentence length mask over padding
     mask = target.gt(0)
     masked_target = target.masked_select(mask)
-    # examples x ntokens
     output_mask = mask.unsqueeze(1).expand(mask.size(0), ntokens)
-
-    # output: batch x seq_len x ntokens
     output = autoencoder(whichdecoder, source, lengths, noise=True)
-
-    # output_size: batch_size, maxlen, self.ntokens
-    flattened_output = output.view(-1, ntokens)
-
-    masked_output = \
-        flattened_output.masked_select(output_mask).view(-1, ntokens)
+    flat_output = output.view(-1, ntokens)
+    masked_output = flat_output.masked_select(output_mask).view(-1, ntokens)
     loss = criterion_ce(masked_output/args.temp, masked_target)
     loss.backward()
 
@@ -396,11 +416,9 @@ def train_ae(whichdecoder, batch, total_loss_ae, start_time, i):
 
     accuracy = None
     if i % args.log_interval == 0 and i > 0:
-        # accuracy
         probs = F.softmax(masked_output, dim=-1)
         max_vals, max_indices = torch.max(probs, 1)
         accuracy = torch.mean(max_indices.eq(masked_target).float()).data[0]
-
         cur_loss = total_loss_ae[0] / args.log_interval
         elapsed = time.time() - start_time
         print('| epoch {:3d} | {:5d}/{:5d} batches | ms/batch {:5.2f} | '
@@ -429,24 +447,44 @@ def train_gan_g():
     noise = to_gpu(args.cuda,
                    Variable(torch.ones(args.batch_size, args.z_size)))
     noise.data.normal_(0, 1)
-
     fake_hidden = gan_gen(noise)
     errG = gan_disc(fake_hidden)
-
-    # loss / backprop
     errG.backward(one)
     optimizer_gan_g.step()
 
     return errG
 
 
+def grad_hook(grad):
+    return grad * args.grad_lambda
+
+
+''' Steal from https://github.com/caogang/wgan-gp/blob/master/gan_cifar10.py '''
+def calc_gradient_penalty(netD, real_data, fake_data):
+    bsz = real_data.size(0)
+    alpha = torch.rand(bsz, 1)
+    alpha = alpha.expand(bsz, real_data.size(1))  # only works for 2D XXX
+    alpha = alpha.cuda()
+    interpolates = alpha * real_data + ((1 - alpha) * fake_data)
+    interpolates = Variable(interpolates, requires_grad=True)
+    disc_interpolates = netD(interpolates)
+
+    gradients = torch.autograd.grad(outputs=disc_interpolates, inputs=interpolates,
+                                    grad_outputs=torch.ones(disc_interpolates.size()).cuda(),
+                                    create_graph=True, retain_graph=True, only_inputs=True)[0]
+    gradients = gradients.view(gradients.size(0), -1)
+
+    gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean() * args.gan_gp_lambda
+    return gradient_penalty
+
+
 def train_gan_d(whichdecoder, batch):
     # clamp parameters to a cube
-    for p in gan_disc.parameters():
-        p.data.clamp_(-args.gan_clamp, args.gan_clamp)
+    #for p in gan_disc.parameters():
+    #    p.data.clamp_(-args.gan_clamp, args.gan_clamp)
 
     gan_disc.train()
-    gan_disc.zero_grad()
+    optimizer_gan_d.zero_grad()
 
     # positive samples ----------------------------
     # generate real codes
@@ -472,6 +510,10 @@ def train_gan_d(whichdecoder, batch):
     errD_fake = gan_disc(fake_hidden.detach())
     errD_fake.backward(mone)
 
+    # gradient penalty
+    gradient_penalty = calc_gradient_penalty(gan_disc, real_hidden.data, fake_hidden.data)
+    gradient_penalty.backward()
+
     optimizer_gan_d.step()
     errD = -(errD_real - errD_fake)
 
@@ -479,29 +521,20 @@ def train_gan_d(whichdecoder, batch):
 
 
 def train_gan_d_into_ae(whichdecoder, batch):
-    # clamp parameters to a cube
-    for p in gan_disc.parameters():
-        p.data.clamp_(-args.gan_clamp, args.gan_clamp)
+    ## clamp parameters to a cube
+    #for p in gan_disc.parameters():
+    #    p.data.clamp_(-args.gan_clamp, args.gan_clamp)
 
     autoencoder.train()
-    autoencoder.zero_grad()
+    optimizer_ae.zero_grad()
 
-    # positive samples ----------------------------
-    # generate real codes
     source, target, lengths = batch
     source = to_gpu(args.cuda, Variable(source))
     target = to_gpu(args.cuda, Variable(target))
-
-    # batch_size x nhidden
     real_hidden = autoencoder(whichdecoder, source, lengths, noise=False, encode_only=True)
-    global g_factor; g_factor = torch.from_numpy(np.array(lengths)).float().unsqueeze(-1)
     real_hidden.register_hook(grad_hook)
-
-    # loss / backprop
     errD_real = gan_disc(real_hidden)
-    errD_real.backward(one)
-
-    # `clip_grad_norm` to prvent exploding gradient problem in RNNs / LSTMs
+    errD_real.backward(mone)
     torch.nn.utils.clip_grad_norm(autoencoder.parameters(), args.clip)
 
     optimizer_ae.step()
@@ -650,6 +683,9 @@ for epoch in range(1, args.epochs+1):
                        test_loss, math.exp(test_loss), accuracy))
         f.write('-' * 89)
         f.write('\n')
+
+    evaluate_generator(1, fixed_noise, "end_of_epoch_{}".format(epoch))
+    evaluate_generator(2, fixed_noise, "end_of_epoch_{}".format(epoch))
 
     if args.debug:
         continue
