@@ -540,7 +540,6 @@ def train():
                 "{:03d}_examplar_gen".format(epoch)))
 
         # eval with rev_ppl and for_ppl
-        '''
         rev_ppl, for_ppl = train_lm(args.data_path)
         logging("Epoch {:03d}, Reverse perplexity {}".format(epoch, rev_ppl))
         logging("Epoch {:03d}, Forward perplexity {}".format(epoch, for_ppl))
@@ -555,6 +554,5 @@ def train():
                 if impatience > args.patience:
                     logging("Ending training")
                     sys.exit()
-        '''
 
 train()
