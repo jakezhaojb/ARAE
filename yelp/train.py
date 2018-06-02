@@ -21,7 +21,7 @@ parser = argparse.ArgumentParser(description='PyTorch ARAE for Yelp transfer')
 # Path Arguments
 parser.add_argument('--data_path', type=str, required=True,
                     help='location of the data corpus')
-parser.add_argument('--save', type=str, default='example',
+parser.add_argument('--outf', type=str, default='example',
                     help='output directory name')
 parser.add_argument('--load_vocab', type=str, default="",
                     help='path to load vocabulary from')
@@ -344,8 +344,8 @@ def evaluate_autoencoder(whichdecoder, data_source, epoch):
         total_loss += criterion_ce(masked_output/args.temp, masked_target).data
         bcnt += 1
 
-        aeoutf_from = "%s/%d_output_decoder_%d_from.txt".format(args.outf, epoch, whichdecoder)
-        aeoutf_tran = "%s/%d_output_decoder_%d_tran.txt".format(args.outf, epoch, whichdecoder)
+        aeoutf_from = "{}/{}_output_decoder_{}_from.txt".format(args.outf, epoch, whichdecoder)
+        aeoutf_tran = "{}/{}_output_decoder_{}_tran.txt".format(args.outf, epoch, whichdecoder)
         with open(aeoutf_from, 'w') as f_from, open(aeoutf_tran,'w') as f_trans:
             max_indices1 = \
                 max_indices1.view(output.size(0), -1).data.cpu().numpy()
