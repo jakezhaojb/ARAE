@@ -65,7 +65,7 @@ parser.add_argument('--dropout', type=float, default=0.0,
                     help='dropout applied to layers (0 = no dropout)')
 
 # Training Arguments
-parser.add_argument('--epochs', type=int, default=15,
+parser.add_argument('--epochs', type=int, default=8,
                     help='maximum number of epochs')
 parser.add_argument('--batch_size', type=int, default=64, metavar='N',
                     help='batch size')
@@ -172,7 +172,7 @@ print("Vocabulary Size: {}".format(ntokens))
 args.ntokens = ntokens
 with open('{}/args.json'.format(args.outf), 'w') as f:
     json.dump(vars(args), f)
-with open("{}/logs.txt".format(args.outf), 'w') as f:
+with open("{}/log.txt".format(args.outf), 'w') as f:
     f.write(str(vars(args)))
     f.write("\n\n")
 
@@ -352,13 +352,14 @@ def evaluate_autoencoder(whichdecoder, data_source, epoch):
             max_indices2 = \
                 max_indices2.view(output.size(0), -1).data.cpu().numpy()
             target = target.view(output.size(0), -1).data.cpu().numpy()
-            for t, idx1, idx2 in zip(target, max_indices1, max_indices2):
+            tran_indices = max_indices2 if whichdecoder == 1 else max_indices1
+            for t, tran_idx in zip(target, tran_indices):
                 # real sentence
                 chars = " ".join([corpus.dictionary.idx2word[x] for x in t])
                 f_from.write(chars)
                 f_from.write("\n")
                 # transfer sentence
-                chars = " ".join([corpus.dictionary.idx2word[x] for x in idx2])
+                chars = " ".join([corpus.dictionary.idx2word[x] for x in tran_idx])
                 f_trans.write(chars)
                 f_trans.write("\n")
 
@@ -427,7 +428,7 @@ def train_ae(whichdecoder, batch, total_loss_ae, start_time, i):
                       elapsed * 1000 / args.log_interval,
                       cur_loss, math.exp(cur_loss), accuracy))
 
-        with open("{}/logs.txt".format(args.outf), 'a') as f:
+        with open("{}/log.txt".format(args.outf), 'a') as f:
             f.write('| epoch {:3d} | {:5d}/{:5d} batches | ms/batch {:5.2f} | '
                     'loss {:5.2f} | ppl {:8.2f} | acc {:8.2f}\n'.
                     format(epoch, i, len(train1_data),
@@ -543,7 +544,7 @@ def train_gan_d_into_ae(whichdecoder, batch):
 
 
 print("Training...")
-with open("{}/logs.txt".format(args.outf), 'a') as f:
+with open("{}/log.txt".format(args.outf), 'a') as f:
     f.write('Training...\n')
 
 # schedule of increasing GAN training loops
@@ -564,7 +565,7 @@ for epoch in range(1, args.epochs+1):
     if epoch in gan_schedule:
         niter_gan += 1
         print("GAN training loop schedule increased to {}".format(niter_gan))
-        with open("{}/logs.txt".format(args.outf), 'a') as f:
+        with open("{}/log.txt".format(args.outf), 'a') as f:
             f.write("GAN training loop schedule increased to {}\n".
                     format(niter_gan))
 
@@ -636,7 +637,7 @@ for epoch in range(1, args.epochs+1):
                      errD_fake.data[0], errG.data[0]))
             print("Classify loss: {:5.2f} | Classify accuracy: {:3.3f}\n".format(
                     classify_loss, classify_acc))
-            with open("{}/logs.txt".format(args.outf), 'a') as f:
+            with open("{}/log.txt".format(args.outf), 'a') as f:
                 f.write('[%d/%d][%d/%d] Loss_D: %.4f (Loss_D_real: %.4f '
                         'Loss_D_fake: %.4f) Loss_G: %.4f\n'
                         % (epoch, args.epochs, niter, len(train1_data),
@@ -659,7 +660,7 @@ for epoch in range(1, args.epochs+1):
           format(epoch, (time.time() - epoch_start_time),
                  test_loss, math.exp(test_loss), accuracy))
     print('-' * 89)
-    with open("{}/logs.txt".format(args.outf), 'a') as f:
+    with open("{}/log.txt".format(args.outf), 'a') as f:
         f.write('-' * 89)
         f.write('\n| end of epoch {:3d} | time: {:5.2f}s | test loss {:5.2f} |'
                 ' test ppl {:5.2f} | acc {:3.3f}\n'.
@@ -675,7 +676,7 @@ for epoch in range(1, args.epochs+1):
           format(epoch, (time.time() - epoch_start_time),
                  test_loss, math.exp(test_loss), accuracy))
     print('-' * 89)
-    with open("{}/logs.txt".format(args.outf), 'a') as f:
+    with open("{}/log.txt".format(args.outf), 'a') as f:
         f.write('-' * 89)
         f.write('\n| end of epoch {:3d} | time: {:5.2f}s | test loss {:5.2f} |'
                 ' test ppl {:5.2f} | acc {:3.3f}\n'.
@@ -702,7 +703,7 @@ print('| end of epoch {:3d} | time: {:5.2f}s | test loss {:5.2f} | '
       format(epoch, (time.time() - epoch_start_time),
              test_loss, math.exp(test_loss), accuracy))
 print('-' * 89)
-with open("{}/logs.txt".format(args.outf), 'a') as f:
+with open("{}/log.txt".format(args.outf), 'a') as f:
     f.write('-' * 89)
     f.write('\n| end of epoch {:3d} | time: {:5.2f}s | test loss {:5.2f} |'
             ' test ppl {:5.2f} | acc {:3.3f}\n'.
@@ -718,7 +719,7 @@ print('| end of epoch {:3d} | time: {:5.2f}s | test loss {:5.2f} | '
       format(epoch, (time.time() - epoch_start_time),
              test_loss, math.exp(test_loss), accuracy))
 print('-' * 89)
-with open("{}/logs.txt".format(args.outf), 'a') as f:
+with open("{}/log.txt".format(args.outf), 'a') as f:
     f.write('-' * 89)
     f.write('\n| end of epoch {:3d} | time: {:5.2f}s | test loss {:5.2f} |'
             ' test ppl {:5.2f} | acc {:3.3f}\n'.
