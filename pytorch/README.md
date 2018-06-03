@@ -161,5 +161,22 @@ If you would like to train a text ARAE on another dataset, simply
 - `pip install https://github.com/kpu/kenlm/archive/master.zip`
 - For more information on KenLM see: https://github.com/kpu/kenlm and http://kheafield.com/code/kenlm/
 
+## Evaluation with RNNLM
 
+To evaluate the reverse PPL with an RNNLM, first preprocess the data with the generated/real text files, e.g.
 
+```
+python preprocess_lm.py --trainfile generated-data.txt --valfile real-val.txt --testfile real-test.txt
+```
+
+To train the model
+
+```
+python train_rnnlm.py --train_file lm-data-train.hdf5 --val_file lm-data-val.hdf5 --checkpoint_path lm-model.ptb
+```
+
+To evaluate on test
+
+```
+python train_rnnlm.py --trainfile lm-data-train.hdf5 --val_file lm-data-test.hdf5 --train_from lm-model.ptb --test 1 
+```
