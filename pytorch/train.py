@@ -326,21 +326,22 @@ def train_lm(data_path):
             chars = " ".join(truncated_sent)
             f.write(chars+'\n')
     # reverse ppl
+    # TODO yoon
     try:
-        rev_lm = train_ngram_lm(kenlm_path=args.kenlm_path,
+        rev_lm = train_rnnlm(kenlm_path=args.kenlm_path,
                             data_path=save_path,
                             output_path=save_path+".arpa",
                             N=args.N)
         with open(os.path.join(args.data_path, 'test.txt'), 'r') as f:
             lines = f.readlines()
         sentences = [l.replace('\n', '') for l in lines]
-        rev_ppl = get_ppl(rev_lm, sentences)
+        rev_ppl = get_ppl_rnn(rev_lm, sentences)
     except:
         print("reverse ppl error: it maybe the generated files aren't valid to obtain an LM")
         rev_ppl = 1e15
     '''
     # forward ppl
-    for_lm = train_ngram_lm(kenlm_path=args.kenlm_path,
+    for_lm = train_rnnlm(kenlm_path=args.kenlm_path,
                         data_path=os.path.join(args.data_path, 'train.txt'),
                         output_path=save_path+".arpa",
                         N=args.N)

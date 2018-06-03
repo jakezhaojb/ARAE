@@ -186,6 +186,13 @@ def train_ngram_lm(kenlm_path, data_path, output_path, N):
     return model
 
 
+def train_rnnlm(data_path, output_path):
+    """
+    Train an RNNLM based on the data given by data_path
+    """
+    # TODO yoon
+
+
 def get_ppl(lm, sentences):
     """
     Assume sentences is a list of strings (space delimited sentences)
@@ -200,6 +207,13 @@ def get_ppl(lm, sentences):
         total_nll += score
     ppl = 10**-(total_nll/total_wc)
     return ppl
+
+
+def get_ppl_rnn(lm, sentences):
+    """
+    Obtain the score of a sentence by an RNNLM
+    """
+    # TODO yoon
 
 
 def create_exp_dir(path, scripts_to_save=None, dict=None, options=None):
