@@ -140,6 +140,7 @@ if args.data_path.find("snli") != -1:
 elif args.data_path.find("1Bword") != -1:
     args.maxlen = 25
     args.vocab_size = 30000
+    args.lowercase = True
 corpus = Corpus(args.data_path,
                 maxlen=args.maxlen,
                 vocab_size=args.vocab_size,
@@ -328,14 +329,16 @@ def train_lm(data_path):
     # reverse ppl
     # TODO yoon
     try:
-        rev_lm = train_rnnlm(kenlm_path=args.kenlm_path,
+        rev_lm = train_ngram_lm(kenlm_path=args.kenlm_path,
                             data_path=save_path,
                             output_path=save_path+".arpa",
                             N=args.N)
         with open(os.path.join(args.data_path, 'test.txt'), 'r') as f:
             lines = f.readlines()
+        if args.lowercase:
+            lines = list(map(lambda x: x.lower(), lines))
         sentences = [l.replace('\n', '') for l in lines]
-        rev_ppl = get_ppl_rnn(rev_lm, sentences)
+        rev_ppl = get_ppl(rev_lm, sentences)
     except:
         print("reverse ppl error: it maybe the generated files aren't valid to obtain an LM")
         rev_ppl = 1e15

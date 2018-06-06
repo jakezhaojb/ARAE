@@ -4,6 +4,7 @@ import numpy as np
 import random
 import shutil
 import json
+import math
 
 def load_kenlm():
     global kenlm
@@ -201,11 +202,11 @@ def get_ppl(lm, sentences):
     total_wc = 0
     for sent in sentences:
         words = sent.strip().split()
-        score = lm.score(sent, bos=True, eos=False)
+        nll = np.sum([- math.log(math.pow(10.0, score)) for score, _, _ in lm.full_scores(sent, bos=True, eos=False)])
         word_count = len(words)
         total_wc += word_count
-        total_nll += score
-    ppl = 10**-(total_nll/total_wc)
+        total_nll += nll
+    ppl = np.exp(total_nll / total_wc)
     return ppl
 
 
