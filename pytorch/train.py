@@ -81,7 +81,7 @@ parser.add_argument('--niters_gan_g', type=int, default=1,
                     help='number of generator iterations in training')
 parser.add_argument('--niters_gan_ae', type=int, default=5,
                     help='number of gan-into-ae iterations in training')
-parser.add_argument('--niters_gan_schedule', type=str, default='',   # TODO
+parser.add_argument('--niters_gan_schedule', type=str, default='',
                     help='epoch counts to increase number of GAN training '
                          ' iterations (increment by 1 each time)')
 parser.add_argument('--lr_ae', type=float, default=1,
@@ -138,7 +138,7 @@ if args.data_path.find("snli") != -1:
     args.vocab_size = 11000
     args.lowercase = True
 elif args.data_path.find("1Bword") != -1:
-    args.maxlen = 25
+    args.maxlen = 20
     args.vocab_size = 30000
     args.lowercase = True
 corpus = Corpus(args.data_path,

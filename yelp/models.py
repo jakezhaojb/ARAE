@@ -57,14 +57,14 @@ class MLP_Classify(nn.Module):
 
 
 class Seq2Seq2Decoder(nn.Module):
-    def __init__(self, emsize, nhidden, ntokens, nlayers, noise_radius=0.2,
+    def __init__(self, emsize, nhidden, ntokens, nlayers, noise_r=0.2,
                  share_decoder_emb=False, hidden_init=False, dropout=0, gpu=False):
         super(Seq2Seq2Decoder, self).__init__()
         self.nhidden = nhidden
         self.emsize = emsize
         self.ntokens = ntokens
         self.nlayers = nlayers
-        self.noise_radius = noise_radius
+        self.noise_r = noise_r
         self.hidden_init = hidden_init
         self.dropout = dropout
         self.gpu = gpu
@@ -174,9 +174,9 @@ class Seq2Seq2Decoder(nn.Module):
         # For newest version of PyTorch (as of 8/25) use this:
         # hidden = torch.div(hidden, norms.unsqueeze(1).expand_as(hidden))
 
-        if noise and self.noise_radius > 0:
+        if noise and self.noise_r > 0:
             gauss_noise = torch.normal(means=torch.zeros(hidden.size()),
-                                       std=self.noise_radius)
+                                       std=self.noise_r)
             hidden = hidden + to_gpu(self.gpu, Variable(gauss_noise))
 
         return hidden
@@ -357,14 +357,14 @@ class MLP_G(nn.Module):
 
 
 class Seq2Seq(nn.Module):
-    def __init__(self, emsize, nhidden, ntokens, nlayers, noise_radius=0.2,
+    def __init__(self, emsize, nhidden, ntokens, nlayers, noise_r=0.2,
                  hidden_init=False, dropout=0, gpu=False):
         super(Seq2Seq, self).__init__()
         self.nhidden = nhidden
         self.emsize = emsize
         self.ntokens = ntokens
         self.nlayers = nlayers
-        self.noise_radius = noise_radius
+        self.noise_r = noise_r
         self.hidden_init = hidden_init
         self.dropout = dropout
         self.gpu = gpu
@@ -462,9 +462,9 @@ class Seq2Seq(nn.Module):
         # For newest version of PyTorch (as of 8/25) use this:
         # hidden = torch.div(hidden, norms.unsqueeze(1).expand_as(hidden))
 
-        if noise and self.noise_radius > 0:
+        if noise and self.noise_r > 0:
             gauss_noise = torch.normal(means=torch.zeros(hidden.size()),
-                                       std=self.noise_radius)
+                                       std=self.noise_r)
             hidden = hidden + to_gpu(self.gpu, Variable(gauss_noise))
 
         return hidden

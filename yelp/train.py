@@ -36,26 +36,26 @@ parser.add_argument('--lowercase', action='store_true',
                     help='lowercase all text')
 
 # Model Arguments
-parser.add_argument('--emsize', type=int, default=500,
+parser.add_argument('--emsize', type=int, default=128,
                     help='size of word embeddings')
-parser.add_argument('--nhidden', type=int, default=500,
+parser.add_argument('--nhidden', type=int, default=128,
                     help='number of hidden units per layer')
 parser.add_argument('--nlayers', type=int, default=1,
                     help='number of layers')
-parser.add_argument('--noise_radius', type=float, default=0.1,
+parser.add_argument('--noise_r', type=float, default=0.1,
                     help='stdev of noise for autoencoder (regularizer)')
 parser.add_argument('--noise_anneal', type=float, default=0.997,
-                    help='anneal noise_radius exponentially by this'
+                    help='anneal noise_r exponentially by this'
                          'every 100 iterations')
 parser.add_argument('--hidden_init', action='store_true',
                     help="initialize decoder hidden state with encoder's")
-parser.add_argument('--arch_g', type=str, default='200-400-800',
+parser.add_argument('--arch_g', type=str, default='128-128',
                     help='generator architecture (MLP)')
-parser.add_argument('--arch_d', type=str, default='300-200-100',
+parser.add_argument('--arch_d', type=str, default='128-128',
                     help='critic/discriminator architecture (MLP)')
-parser.add_argument('--arch_classify', type=str, default='300-200-100',
+parser.add_argument('--arch_classify', type=str, default='128-128',
                     help='classifier architecture')
-parser.add_argument('--z_size', type=int, default=64,
+parser.add_argument('--z_size', type=int, default=32,
                     help='dimension of random noise z to feed into generator')
 parser.add_argument('--temp', type=float, default=1,
                     help='softmax temperature (lower --> more discrete)')
@@ -71,32 +71,32 @@ parser.add_argument('--batch_size', type=int, default=64, metavar='N',
                     help='batch size')
 parser.add_argument('--niters_ae', type=int, default=1,
                     help='number of autoencoder iterations in training')
-parser.add_argument('--niters_gan_d', type=int, default=10,
+parser.add_argument('--niters_gan_d', type=int, default=5,
                     help='number of discriminator iterations in training')
 parser.add_argument('--niters_gan_g', type=int, default=1,
                     help='number of generator iterations in training')
-parser.add_argument('--niters_gan_ae', type=int, default=2,
-                    help='number of autoencoder from discriminator iterations')
+parser.add_argument('--niters_gan_ae', type=int, default=5,
+                    help='number of gan-into-ae iterations in training')
 parser.add_argument('--niters_gan_schedule', type=str, default='',
                     help='epoch counts to increase number of GAN training '
                          ' iterations (increment by 1 each time)')
 parser.add_argument('--lr_ae', type=float, default=1,
                     help='autoencoder learning rate')
-parser.add_argument('--lr_gan_g', type=float, default=5e-05,
+parser.add_argument('--lr_gan_g', type=float, default=1e-04,
                     help='generator learning rate')
-parser.add_argument('--lr_gan_d', type=float, default=1e-05,
+parser.add_argument('--lr_gan_d', type=float, default=1e-04,
                     help='critic/discriminator learning rate')
 parser.add_argument('--lr_classify', type=float, default=0.1,
                     help='classifier learning rate')
-parser.add_argument('--beta1', type=float, default=0.9,
-                    help='beta1 for adam. default=0.9')
+parser.add_argument('--beta1', type=float, default=0.5,
+                    help='beta1 for adam. default=0.5')
 parser.add_argument('--clip', type=float, default=1,
                     help='gradient clipping, max norm')
 parser.add_argument('--gan_clamp', type=float, default=0.01,
                     help='WGAN clamp')
 parser.add_argument('--gan_gp_lambda', type=float, default=10,
                     help='WGAN GP penalty lambda')
-parser.add_argument('--grad_lambda', type=float, default=0.1,
+parser.add_argument('--grad_lambda', type=float, default=1,
                     help='WGAN into AE lambda')
 parser.add_argument('--lambda_class', type=float, default=1,
                     help='lambda on classifier')
@@ -197,7 +197,7 @@ autoencoder = Seq2Seq2Decoder(emsize=args.emsize,
                       nhidden=args.nhidden,
                       ntokens=ntokens,
                       nlayers=args.nlayers,
-                      noise_radius=args.noise_radius,
+                      noise_r=args.noise_r,
                       hidden_init=args.hidden_init,
                       dropout=args.dropout,
                       gpu=args.cuda)
@@ -647,8 +647,8 @@ for epoch in range(1, args.epochs+1):
                         classify_loss, classify_acc))
 
             # exponentially decaying noise on autoencoder
-            autoencoder.noise_radius = \
-                autoencoder.noise_radius*args.noise_anneal
+            autoencoder.noise_r = \
+                autoencoder.noise_r*args.noise_anneal
 
 
     # end of epoch ----------------------------
