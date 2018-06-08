@@ -44,7 +44,7 @@ parser.add_argument('--nlayers', type=int, default=1,
                     help='number of layers')
 parser.add_argument('--noise_r', type=float, default=0.1,
                     help='stdev of noise for autoencoder (regularizer)')
-parser.add_argument('--noise_anneal', type=float, default=0.997,
+parser.add_argument('--noise_anneal', type=float, default=0.9995,
                     help='anneal noise_r exponentially by this'
                          'every 100 iterations')
 parser.add_argument('--hidden_init', action='store_true',
@@ -86,7 +86,7 @@ parser.add_argument('--lr_gan_g', type=float, default=1e-04,
                     help='generator learning rate')
 parser.add_argument('--lr_gan_d', type=float, default=1e-04,
                     help='critic/discriminator learning rate')
-parser.add_argument('--lr_classify', type=float, default=0.1,
+parser.add_argument('--lr_classify', type=float, default=1e-04,
                     help='classifier learning rate')
 parser.add_argument('--beta1', type=float, default=0.5,
                     help='beta1 for adam. default=0.5')
@@ -220,8 +220,9 @@ optimizer_gan_d = optim.Adam(gan_disc.parameters(),
                              lr=args.lr_gan_d,
                              betas=(args.beta1, 0.999))
 #### classify
-optimizer_classify = optim.SGD(classifier.parameters(),
-                               lr=args.lr_classify)
+optimizer_classify = optim.Adam(classifier.parameters(),
+                                lr=args.lr_classify,
+                                betas=(args.beta1, 0.999))
 
 criterion_ce = nn.CrossEntropyLoss()
 
