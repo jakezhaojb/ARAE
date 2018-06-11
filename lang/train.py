@@ -312,10 +312,6 @@ def calc_gradient_penalty(netD, real_data, fake_data):
 
 
 def train_gan_d(batch):
-   # # clamp parameters to a cube  # TODO use the WGAN-GP
-   # for p in gan_disc.parameters():
-   #     p.data.clamp_(-args.gan_clamp, args.gan_clamp)
-
     gan_disc.train()
     optimizer_gan_d.zero_grad()
 
@@ -342,10 +338,6 @@ def train_gan_d(batch):
 
 
 def train_gan_d_into_ae(batch):
-   # # clamp parameters to a cube
-   # for p in gan_disc.parameters():
-   #     p.data.clamp_(-args.gan_clamp, args.gan_clamp)
-
     autoencoder.train()
     optimizer_ae.zero_grad()
 

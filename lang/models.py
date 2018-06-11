@@ -184,7 +184,7 @@ class Seq2Seq(nn.Module):
 
         return decoded
 
-    def encode(self, indices, lengths, noise):  # TODO noise and noise_r
+    def encode(self, indices, lengths, noise): 
         embeddings = self.embedding(indices)
         packed_embeddings = pack_padded_sequence(input=embeddings,
                                                  lengths=lengths,

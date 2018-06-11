@@ -1,4 +1,4 @@
-## Pretrained version TODO
+## Pretrained version
 
 1) Download and unzip from [here](https://drive.google.com/file/d/1h4GlTP1iVbQQQfZkSGoNtbcfCp1D2gzB/view?usp=sharing)
 
