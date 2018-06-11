@@ -27,16 +27,11 @@ torch.cuda.manual_seed(args.seed)
 ###############################################################################
 # Load data
 ###############################################################################
-# create corpus  # TODO to be deleted
-if args.data_path.find("1Bword") != -1:
-    args.maxlen = 20
-    args.vocab_size = 30000
-    args.lowercase = True
+# create corpus
 corpus = Corpus(args.data_path,
                 maxlen=args.maxlen,
                 vocab_size=args.vocab_size,
                 lowercase=args.lowercase)
-
 
 # save arguments
 ntokens = len(corpus.dictionary.word2idx)

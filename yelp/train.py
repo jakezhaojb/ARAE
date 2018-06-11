@@ -17,23 +17,26 @@ from utils import to_gpu, Corpus, batchify
 from models import Seq2Seq2Decoder, Seq2Seq, MLP_D, MLP_G, MLP_Classify
 import shutil
 
-parser = argparse.ArgumentParser(description='PyTorch ARAE for Yelp transfer')
+parser = argparse.ArgumentParser(description='ARAE for Yelp transfer')
 # Path Arguments
 parser.add_argument('--data_path', type=str, required=True,
                     help='location of the data corpus')
-parser.add_argument('--outf', type=str, default='example',
+parser.add_argument('--outf', type=str, default='yelp_example',
                     help='output directory name')
 parser.add_argument('--load_vocab', type=str, default="",
                     help='path to load vocabulary from')
 
 # Data Processing Arguments
-parser.add_argument('--vocab_size', type=int, default=11000,
+parser.add_argument('--vocab_size', type=int, default=30000,
                     help='cut vocabulary down to this size '
                          '(most frequently seen words in train)')
-parser.add_argument('--maxlen', type=int, default=30,
+parser.add_argument('--maxlen', type=int, default=25,
                     help='maximum sentence length')
-parser.add_argument('--lowercase', action='store_true',
+parser.add_argument('--lowercase', dest='lowercase', action='store_true',
                     help='lowercase all text')
+parser.add_argument('--no-lowercase', dest='lowercase', action='store_true',
+                    help='not lowercase all text')
+parser.set_defaults(lowercase=True)
 
 # Model Arguments
 parser.add_argument('--emsize', type=int, default=128,
@@ -59,13 +62,11 @@ parser.add_argument('--z_size', type=int, default=32,
                     help='dimension of random noise z to feed into generator')
 parser.add_argument('--temp', type=float, default=1,
                     help='softmax temperature (lower --> more discrete)')
-parser.add_argument('--enc_grad_norm', type=bool, default=True,
-                    help='norm code gradient from critic->encoder')
 parser.add_argument('--dropout', type=float, default=0.0,
                     help='dropout applied to layers (0 = no dropout)')
 
 # Training Arguments
-parser.add_argument('--epochs', type=int, default=8,
+parser.add_argument('--epochs', type=int, default=25,
                     help='maximum number of epochs')
 parser.add_argument('--batch_size', type=int, default=64, metavar='N',
                     help='batch size')
@@ -75,7 +76,7 @@ parser.add_argument('--niters_gan_d', type=int, default=5,
                     help='number of discriminator iterations in training')
 parser.add_argument('--niters_gan_g', type=int, default=1,
                     help='number of generator iterations in training')
-parser.add_argument('--niters_gan_ae', type=int, default=5,
+parser.add_argument('--niters_gan_ae', type=int, default=1,
                     help='number of gan-into-ae iterations in training')
 parser.add_argument('--niters_gan_schedule', type=str, default='',
                     help='epoch counts to increase number of GAN training '
@@ -94,9 +95,9 @@ parser.add_argument('--clip', type=float, default=1,
                     help='gradient clipping, max norm')
 parser.add_argument('--gan_clamp', type=float, default=0.01,
                     help='WGAN clamp')
-parser.add_argument('--gan_gp_lambda', type=float, default=10,
+parser.add_argument('--gan_gp_lambda', type=float, default=0.1,
                     help='WGAN GP penalty lambda')
-parser.add_argument('--grad_lambda', type=float, default=1,
+parser.add_argument('--grad_lambda', type=float, default=0.01,
                     help='WGAN into AE lambda')
 parser.add_argument('--lambda_class', type=float, default=1,
                     help='lambda on classifier')
@@ -110,8 +111,11 @@ parser.add_argument('--log_interval', type=int, default=200,
 # Other
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
-parser.add_argument('--cuda', action='store_true',
+parser.add_argument('--cuda', dest='cuda', action='store_true',
                     help='use CUDA')
+parser.add_argument('--no-cuda', dest='cuda', action='store_true',
+                    help='not using CUDA')
+parser.set_defaults(cuda=True)
 parser.add_argument('--debug', action='store_true',
                     help='debug')
 parser.add_argument('--device_id', type=str, default='0')
