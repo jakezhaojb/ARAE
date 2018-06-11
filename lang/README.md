@@ -1,8 +1,23 @@
-# ARAE for Language generator
+# ARAE for Language
 
 ## Requirements
 - PyTorch, JSON, Argparse
 - KenLM (https://github.com/kpu/kenlm)
+
+### KenLM Installation:
+- Download stable release and unzip: http://kheafield.com/code/kenlm.tar.gz
+- Need Boost >= 1.42.0 and bjam
+    - Ubuntu: `sudo apt-get install libboost-all-dev`
+    - Mac: `brew install boost; brew install bjam`
+- Run *within* kenlm directory:
+    ```bash
+    mkdir -p build
+    cd build
+    cmake ..
+    make -j 4
+    ```
+- `pip install https://github.com/kpu/kenlm/archive/master.zip`
+- For more information on KenLM see: https://github.com/kpu/kenlm and http://kheafield.com/code/kenlm/
 
 ## Train and Pretrain models
 * [SNLI](doc/README_snli.md)
@@ -32,6 +47,4 @@ To evaluate on test
 ```
 python train_rnnlm.py --trainfile lm-data-train.hdf5 --val_file lm-data-test.hdf5 --train_from lm-model.ptb --test 1 
 ```
-
-
 

@@ -1,6 +1,6 @@
 ## Pretrained version TODO
 
-1) Download and unzip from [here]()
+1) Download and unzip from [here](https://drive.google.com/file/d/1h4GlTP1iVbQQQfZkSGoNtbcfCp1D2gzB/view?usp=sharing)
 
 2) Run: 
 
@@ -72,23 +72,6 @@ but i was in <oov> <oov> near the la times during an <oov> rather than in 2007 .
 but , <oov> 's <oov> grant <oov> <oov> the korean peninsula back across <oov> .
 in 1977 , <oov> <oov> 's christian parish appealed the letter into <oov> <oov> ."'"
 ```
-
-
-### KenLM Installation:
-- Download stable release and unzip: http://kheafield.com/code/kenlm.tar.gz
-- Need Boost >= 1.42.0 and bjam
-    - Ubuntu: `sudo apt-get install libboost-all-dev`
-    - Mac: `brew install boost; brew install bjam`
-- Run *within* kenlm directory:
-    ```bash
-    mkdir -p build
-    cd build
-    cmake ..
-    make -j 4
-    ```
-- `pip install https://github.com/kpu/kenlm/archive/master.zip`
-- For more information on KenLM see: https://github.com/kpu/kenlm and http://kheafield.com/code/kenlm/
-
 
 ## Train
 

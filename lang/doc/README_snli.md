@@ -2,11 +2,12 @@
 
 ### SNLI Data Preparation
 - Download dataset and unzip:
-    
-    mkdir data; cd data
-    wget https://nlp.stanford.edu/projects/snli/snli_1.0.zip
-    unzip snli_1.0.zip
-    cd ..; python snli_preprocessing.py --in_path data/snli_1.0 --out_path data/snli_lm
+```
+mkdir data; cd data
+wget https://nlp.stanford.edu/projects/snli/snli_1.0.zip
+unzip snli_1.0.zip
+cd ..; python snli_preprocessing.py --in_path data/snli_1.0 --out_path data/snli_lm
+```
 
 
 ## Pretrained version
@@ -68,22 +69,6 @@ a boy is looking at clothes on display .
 a child waits to hold on a shovel to stop .
 a child smiles to someone not by a river
 ```
-
-### KenLM Installation:
-- Download stable release and unzip: http://kheafield.com/code/kenlm.tar.gz
-- Need Boost >= 1.42.0 and bjam
-    - Ubuntu: `sudo apt-get install libboost-all-dev`
-    - Mac: `brew install boost; brew install bjam`
-- Run *within* kenlm directory:
-    ```bash
-    mkdir -p build
-    cd build
-    cmake ..
-    make -j 4
-    ```
-- `pip install https://github.com/kpu/kenlm/archive/master.zip`
-- For more information on KenLM see: https://github.com/kpu/kenlm and http://kheafield.com/code/kenlm/
-
 
 ## Train
 

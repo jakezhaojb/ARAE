@@ -1,11 +1,19 @@
 # ARAE
-Code for the paper "Adversarially Regularized Autoencoders for Generating Discrete Structures" by Zhao, Kim, Zhang, Rush and LeCun https://arxiv.org/abs/1706.04223
+Code for the paper "Adversarially Regularized Autoencoders (ICML 2018)" by Zhao, Kim, Zhang, Rush and LeCun https://arxiv.org/abs/1706.04223
 
 
-## Two versions
-We release both Torch and PyTorch code of our approach, in `torch` and `pytorch` folder.
+## Disclaimer
+Major updates on 06/11/2018:
+* WGAN-GP replaced WGAN
+* added 1BWord dataset experiment
+* added Yelp transfer experiment
+* removed unnecessary tricks
+* added both RNNLM and ngram-LM evaluation for both forward and reverse PPL.
 
-For more information, please refer to the README files under each component directory.
+## File structure
+* lang: ARAE for language generation, on both 1B word benchmark and SNLI
+* yelp: ARAE for yelp style transfer
+* mnist (in Torch): ARAE for discretized MNIST
 
 
 ## Reference
