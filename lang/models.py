@@ -12,7 +12,7 @@ import numpy as np
 
 class MLP_D(nn.Module):
     def __init__(self, ninput, noutput, layers,
-                 activation=nn.LeakyReLU(0.2), gpu=False):
+                 activation=nn.LeakyReLU(0.2), gpu=True):
         super(MLP_D, self).__init__()
         self.ninput = ninput
         self.noutput = noutput
@@ -58,7 +58,7 @@ class MLP_D(nn.Module):
 
 class MLP_G(nn.Module):
     def __init__(self, ninput, noutput, layers,
-                 activation=nn.ReLU(), gpu=False):
+                 activation=nn.ReLU(), gpu=True):
         super(MLP_G, self).__init__()
         self.ninput = ninput
         self.noutput = noutput
@@ -101,7 +101,7 @@ class MLP_G(nn.Module):
 
 class Seq2Seq(nn.Module):
     def __init__(self, emsize, nhidden, ntokens, nlayers, noise_r=0.2,
-                 hidden_init=False, dropout=0, gpu=False):
+                 hidden_init=False, dropout=0, gpu=True):
         super(Seq2Seq, self).__init__()
         self.nhidden = nhidden
         self.emsize = emsize

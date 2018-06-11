@@ -18,7 +18,7 @@ parser.add_argument('--ngenerations', type=int, default=10,
                     help='Number of sentences to generate')
 parser.add_argument('--ninterpolations', type=int, default=5,
                     help='Number z-space sentence interpolation examples')
-parser.add_argument('--steps', type=int, default=8,
+parser.add_argument('--steps', type=int, default=5,
                     help='Number of steps in each interpolation')
 parser.add_argument('--outf', type=str, default='./generated.txt',
                     help='filename and path to write to')

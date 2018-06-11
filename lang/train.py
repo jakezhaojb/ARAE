@@ -18,126 +18,17 @@ from torch.autograd import Variable
 from utils import to_gpu, Corpus, batchify, train_ngram_lm, get_ppl, create_exp_dir
 from models import Seq2Seq, MLP_D, MLP_G
 
-parser = argparse.ArgumentParser(description='PyTorch ARAE for Text')
-# Path Arguments
-parser.add_argument('--data_path', type=str, required=True,
-                    help='location of the data corpus')
-parser.add_argument('--kenlm_path', type=str, default='./kenlm',
-                    help='path to kenlm directory')
-parser.add_argument('--save', type=str, default='example',
-                    help='output directory name')
-
-# Data Processing Arguments
-parser.add_argument('--vocab_size', type=int, default=11000,
-                    help='cut vocabulary down to this size '
-                         '(most frequently seen words in train)')
-parser.add_argument('--lowercase', action='store_true',
-                    help='lowercase all text')
-
-# Model Arguments
-parser.add_argument('--emsize', type=int, default=300,
-                    help='size of word embeddings')
-parser.add_argument('--nhidden', type=int, default=300,
-                    help='number of hidden units per layer')
-parser.add_argument('--nlayers', type=int, default=1,
-                    help='number of layers')
-parser.add_argument('--noise_r', type=float, default=0.2,
-                    help='stdev of noise for autoencoder (regularizer)')
-parser.add_argument('--noise_anneal', type=float, default=0.995,
-                    help='anneal noise_r exponentially by this'
-                         'every 100 iterations')
-parser.add_argument('--hidden_init', action='store_true',
-                    help="initialize decoder hidden state with encoder's")
-parser.add_argument('--arch_g', type=str, default='300-300',
-                    help='generator architecture (MLP)')
-parser.add_argument('--arch_d', type=str, default='300-300',
-                    help='critic/discriminator architecture (MLP)')
-parser.add_argument('--z_size', type=int, default=100,
-                    help='dimension of random noise z to feed into generator')
-parser.add_argument('--temp', type=float, default=1,
-                    help='softmax temperature (lower --> more discrete)')
-parser.add_argument('--enc_grad_norm', type=bool, default=True,
-                    help='norm code gradient from critic->encoder')
-parser.add_argument('--dropout', type=float, default=0.0,
-                    help='dropout applied to layers (0 = no dropout)')
-
-# Training Arguments
-parser.add_argument('--epochs', type=int, default=15,
-                    help='maximum number of epochs')
-parser.add_argument('--min_epochs', type=int, default=6,
-                    help="minimum number of epochs to train for")
-parser.add_argument('--no_earlystopping', action='store_true',
-                    help="won't use KenLM for early stopping")
-parser.add_argument('--patience', type=int, default=5,
-                    help="number of language model evaluations without ppl "
-                         "improvement to wait before early stopping")
-parser.add_argument('--batch_size', type=int, default=64, metavar='N',
-                    help='batch size')
-parser.add_argument('--niters_ae', type=int, default=1,
-                    help='number of autoencoder iterations in training')
-parser.add_argument('--niters_gan_d', type=int, default=5,
-                    help='number of discriminator iterations in training')
-parser.add_argument('--niters_gan_g', type=int, default=1,
-                    help='number of generator iterations in training')
-parser.add_argument('--niters_gan_ae', type=int, default=5,
-                    help='number of gan-into-ae iterations in training')
-parser.add_argument('--niters_gan_schedule', type=str, default='',
-                    help='epoch counts to increase number of GAN training '
-                         ' iterations (increment by 1 each time)')
-parser.add_argument('--lr_ae', type=float, default=1,
-                    help='autoencoder learning rate')
-parser.add_argument('--lr_gan_g', type=float, default=1e-04,
-                    help='generator learning rate')
-parser.add_argument('--lr_gan_d', type=float, default=1e-04,
-                    help='critic/discriminator learning rate')
-parser.add_argument('--beta1', type=float, default=0.5,
-                    help='beta1 for adam. default=0.5')
-parser.add_argument('--clip', type=float, default=1,
-                    help='gradient clipping, max norm')
-parser.add_argument('--gan_clamp', type=float, default=0.01,
-                    help='WGAN clamp')
-parser.add_argument('--gan_gp_lambda', type=float, default=10,
-                    help='WGAN GP penalty lambda')
-parser.add_argument('--grad_lambda', type=float, default=1,
-                    help='WGAN into AE lambda')
-
-# Evaluation Arguments
-parser.add_argument('--sample', action='store_true',
-                    help='sample when decoding for generation')
-parser.add_argument('--N', type=int, default=5,
-                    help='N-gram order for training n-gram language model')
-parser.add_argument('--log_interval', type=int, default=200,
-                    help='interval to log autoencoder training results')
-
-# Other
-parser.add_argument('--seed', type=int, default=1111,
-                    help='random seed')
-parser.add_argument('--cuda', action='store_true',
-                    help='use CUDA')
-
-args = parser.parse_args()
-print(vars(args))
-
 # Set the random seed manually for reproducibility.
 random.seed(args.seed) 
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
-if torch.cuda.is_available():
-    if not args.cuda:
-        print("WARNING: You have a CUDA device, "
-              "so you should probably run with --cuda")
-    else:
-        torch.cuda.manual_seed(args.seed)
+torch.cuda.manual_seed(args.seed)
 
 ###############################################################################
 # Load data
 ###############################################################################
 # create corpus  # TODO to be deleted
-if args.data_path.find("snli") != -1:
-    args.maxlen = 15
-    args.vocab_size = 11000
-    args.lowercase = True
-elif args.data_path.find("1Bword") != -1:
+if args.data_path.find("1Bword") != -1:
     args.maxlen = 20
     args.vocab_size = 30000
     args.lowercase = True
@@ -178,8 +69,7 @@ autoencoder = Seq2Seq(emsize=args.emsize,
                       nlayers=args.nlayers,
                       noise_r=args.noise_r,
                       hidden_init=args.hidden_init,
-                      dropout=args.dropout,
-                      gpu=args.cuda)
+                      dropout=args.dropout)
 gan_gen = MLP_G(ninput=args.z_size, noutput=args.nhidden, layers=args.arch_g)
 gan_disc = MLP_D(ninput=args.nhidden, noutput=1, layers=args.arch_d)
 
@@ -226,7 +116,6 @@ def load_models():
     gan_disc.load_state_dict(loaded.get('gan_d'))
     return model_args, idx2word, autoencoder, gan_gen, gan_disc
 
-#  TODO
 def evaluate_autoencoder(data_source, epoch):
     # Turn on evaluation mode which disables dropout.
     autoencoder.eval()
@@ -236,8 +125,8 @@ def evaluate_autoencoder(data_source, epoch):
     bcnt = 0
     for i, batch in enumerate(data_source):
         source, target, lengths = batch
-        source = to_gpu(args.cuda, Variable(source, volatile=True))
-        target = to_gpu(args.cuda, Variable(target, volatile=True))
+        source = Variable(source.cuda(), volatile=True)
+        target = Variable(target.cuda(), volatile=True)
 
         mask = target.gt(0)
         masked_target = target.masked_select(mask)
@@ -250,7 +139,7 @@ def evaluate_autoencoder(data_source, epoch):
 
         masked_output = \
             flattened_output.masked_select(output_mask).view(-1, ntokens)
-        total_loss += F.cross_entropy(masked_output/args.temp, masked_target).data
+        total_loss += F.cross_entropy(masked_output, masked_target).data
 
         # accuracy
         max_vals, max_indices = torch.max(masked_output, 1)
@@ -303,7 +192,7 @@ def train_lm(data_path):
             string.ascii_uppercase + string.digits) for _ in range(6)))
 
     indices = []
-    noise = to_gpu(args.cuda, Variable(torch.ones(100, args.z_size)))
+    noise = Variable(torch.ones(100, args.z_size).cuda())
     for i in range(1000):
         noise.data.normal_(0, 1)
         fake_hidden = gan_gen(noise)
@@ -327,7 +216,6 @@ def train_lm(data_path):
             chars = " ".join(truncated_sent)
             f.write(chars+'\n')
     # reverse ppl
-    # TODO yoon
     try:
         rev_lm = train_ngram_lm(kenlm_path=args.kenlm_path,
                             data_path=save_path,
@@ -342,9 +230,8 @@ def train_lm(data_path):
     except:
         print("reverse ppl error: it maybe the generated files aren't valid to obtain an LM")
         rev_ppl = 1e15
-    '''
     # forward ppl
-    for_lm = train_rnnlm(kenlm_path=args.kenlm_path,
+    for_lm = train_ngram_lm(kenlm_path=args.kenlm_path,
                         data_path=os.path.join(args.data_path, 'train.txt'),
                         output_path=save_path+".arpa",
                         N=args.N)
@@ -352,8 +239,6 @@ def train_lm(data_path):
         lines = f.readlines()
     sentences = [l.replace('\n', '') for l in lines]
     for_ppl = get_ppl(for_lm, sentences)
-    '''
-    for_ppl = 0
     return rev_ppl, for_ppl
 
 
@@ -371,7 +256,7 @@ def train_ae(epoch, batch, total_loss_ae, start_time, i):
     output_mask = mask.unsqueeze(1).expand(mask.size(0), ntokens)
     flat_output = output.view(-1, ntokens)
     masked_output = flat_output.masked_select(output_mask).view(-1, ntokens)
-    loss = F.cross_entropy(masked_output / args.temp, masked_target)
+    loss = F.cross_entropy(masked_output, masked_target)
     loss.backward()
     torch.nn.utils.clip_grad_norm(autoencoder.parameters(), args.clip)
     optimizer_ae.step()
