@@ -12,7 +12,7 @@ Major updates on 06/11/2018:
 
 ## File structure
 * lang: ARAE for language generation, on both 1B word benchmark and SNLI
-* yelp: ARAE for yelp style transfer
+* yelp: ARAE for language style transfer
 * mnist (in Torch): ARAE for discretized MNIST
 
 

@@ -93,8 +93,6 @@ parser.add_argument('--beta1', type=float, default=0.5,
                     help='beta1 for adam. default=0.5')
 parser.add_argument('--clip', type=float, default=1,
                     help='gradient clipping, max norm')
-parser.add_argument('--gan_clamp', type=float, default=0.01,
-                    help='WGAN clamp')
 parser.add_argument('--gan_gp_lambda', type=float, default=0.1,
                     help='WGAN GP penalty lambda')
 parser.add_argument('--grad_lambda', type=float, default=0.01,
@@ -116,8 +114,6 @@ parser.add_argument('--cuda', dest='cuda', action='store_true',
 parser.add_argument('--no-cuda', dest='cuda', action='store_true',
                     help='not using CUDA')
 parser.set_defaults(cuda=True)
-parser.add_argument('--debug', action='store_true',
-                    help='debug')
 parser.add_argument('--device_id', type=str, default='0')
 
 args = parser.parse_args()
@@ -153,8 +149,6 @@ datafiles = [(os.path.join(args.data_path, "valid1.txt"), "valid1", False),
              (os.path.join(args.data_path, "valid2.txt"), "valid2", False),
              (os.path.join(args.data_path, "train1.txt"), "train1", True),
              (os.path.join(args.data_path, "train2.txt"), "train2", True)]
-if args.debug:
-    datafiles = datafiles[:2]
 vocabdict = None
 if args.load_vocab != "":
     vocabdict = json.load(args.vocab)
@@ -163,8 +157,7 @@ corpus = Corpus(datafiles,
                 maxlen=args.maxlen,
                 vocab_size=args.vocab_size,
                 lowercase=args.lowercase,
-                vocab=vocabdict,
-                debug=args.debug)
+                vocab=vocabdict)
 
 # dumping vocabulary
 with open('{}/vocab.json'.format(args.outf), 'w') as f:
@@ -183,12 +176,8 @@ with open("{}/log.txt".format(args.outf), 'w') as f:
 eval_batch_size = 100
 test1_data = batchify(corpus.data['valid1'], eval_batch_size, shuffle=False)
 test2_data = batchify(corpus.data['valid2'], eval_batch_size, shuffle=False)
-if args.debug:
-    train1_data = batchify(corpus.data['valid1'], args.batch_size, shuffle=True)
-    train2_data = batchify(corpus.data['valid2'], args.batch_size, shuffle=True)
-else:
-    train1_data = batchify(corpus.data['train1'], args.batch_size, shuffle=True)
-    train2_data = batchify(corpus.data['train2'], args.batch_size, shuffle=True)
+train1_data = batchify(corpus.data['train1'], args.batch_size, shuffle=True)
+train2_data = batchify(corpus.data['train2'], args.batch_size, shuffle=True)
 
 print("Loaded data!")
 
@@ -485,10 +474,6 @@ def calc_gradient_penalty(netD, real_data, fake_data):
 
 
 def train_gan_d(whichdecoder, batch):
-    # clamp parameters to a cube
-    #for p in gan_disc.parameters():
-    #    p.data.clamp_(-args.gan_clamp, args.gan_clamp)
-
     gan_disc.train()
     optimizer_gan_d.zero_grad()
 
@@ -527,10 +512,6 @@ def train_gan_d(whichdecoder, batch):
 
 
 def train_gan_d_into_ae(whichdecoder, batch):
-    ## clamp parameters to a cube
-    #for p in gan_disc.parameters():
-    #    p.data.clamp_(-args.gan_clamp, args.gan_clamp)
-
     autoencoder.train()
     optimizer_ae.zero_grad()
 
@@ -692,9 +673,6 @@ for epoch in range(1, args.epochs+1):
 
     evaluate_generator(1, fixed_noise, "end_of_epoch_{}".format(epoch))
     evaluate_generator(2, fixed_noise, "end_of_epoch_{}".format(epoch))
-
-    if args.debug:
-        continue
 
     # shuffle between epochs
     train1_data = batchify(corpus.data['train1'], args.batch_size, shuffle=True)
