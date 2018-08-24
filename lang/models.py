@@ -186,7 +186,7 @@ class Seq2Seq(nn.Module):
 
     def encode(self, indices, lengths, noise): 
         embeddings = self.embedding(indices)
-        packed_embeddings = pack_padded_sequence(input=embeddings,
+        packed_embeddings = pack_padded_sequence(embeddings,
                                                  lengths=lengths,
                                                  batch_first=True)
 
@@ -195,7 +195,7 @@ class Seq2Seq(nn.Module):
         hidden = hidden / torch.norm(hidden, p=2, dim=1, keepdim=True)
         
         if noise and self.noise_r > 0:
-            gauss_noise = torch.normal(means=torch.zeros(hidden.size()),
+            gauss_noise = torch.normal(mean=torch.zeros(hidden.size()),
                                        std=self.noise_r)
             hidden = hidden + Variable(gauss_noise.cuda())
 
@@ -213,7 +213,7 @@ class Seq2Seq(nn.Module):
 
         embeddings = self.embedding_decoder(indices)
         augmented_embeddings = torch.cat([embeddings, all_hidden], 2)
-        packed_embeddings = pack_padded_sequence(input=augmented_embeddings,
+        packed_embeddings = pack_padded_sequence(augmented_embeddings,
                                                  lengths=lengths,
                                                  batch_first=True)
 
