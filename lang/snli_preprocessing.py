@@ -96,5 +96,5 @@ if __name__ == "__main__":
 
     premises, hypotheses = \
         transform_data(os.path.join(args.in_path, "snli_1.0_dev.jsonl"))
-    write_sentences(write_path=os.path.join(args.out_path, "train.txt"),
+    write_sentences(write_path=os.path.join(args.out_path, "dev.txt"),
                     premises=premises, hypotheses=hypotheses, append=True)
